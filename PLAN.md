@@ -11,7 +11,7 @@
 3. [Technology Stack & Project Structure](#3-technology-stack--project-structure)
 4. [Design System & Theme Tokens](#4-design-system--theme-tokens)
 5. [Gamification & Anti-Abandonment Engine](#5-gamification--anti-abandonment-engine)
-6. [Master Curriculum: 4 Tracks, 16 REST API Modules](#6-master-curriculum-4-tracks-16-rest-api-modules)
+6. [Master Curriculum: 5 Tracks, 20 REST API Modules](#6-master-curriculum-5-tracks-20-rest-api-modules)
 7. [Interactive Task Types & Visual Teaching Tools](#7-interactive-task-types--visual-teaching-tools)
 8. [Supabase Database Architecture & Complete SQL Schema](#8-supabase-database-architecture--complete-sql-schema)
 9. [End-to-End Lesson Flow & Lifecycle Sequence](#9-end-to-end-lesson-flow--lifecycle-sequence)
@@ -290,16 +290,25 @@ graph TD
         M16["🚀 M16: Automated API Testing & Capstone Project"]
     end
 
+    subgraph T5["Track 5: Real-World Architecture & Patterns"]
+        M17["🏗️ M17: Service Layer & Repository Pattern"]
+        M18["⚡ M18: Events, Listeners & Observers"]
+        M19["🛡️ M19: Policies & RBAC Authorization"]
+        M20["🐞 M20: Global Error Handling & Logging"]
+    end
+
     M01 --> M02 --> M03 --> M04
     M04 --> M05 --> M06 --> M07
     M07 --> M08 --> M09 --> M10 --> M11 --> M12
     M12 --> M13 --> M14 --> M15 --> M16
+    M16 --> M17 --> M18 --> M19 --> M20
 
     style M01 fill:#38bdf8,color:#000
     style M05 fill:#a78bfa,color:#000
     style M08 fill:#f43f5e,color:#fff
     style M11 fill:#fbbf24,color:#000
     style M16 fill:#34d399,color:#000
+    style M20 fill:#fbbf24,color:#000
 ```
 
 ---
@@ -533,6 +542,64 @@ graph TD
 | **16.4** | **Capstone Project: MiniGram Mobile API** | A complete Instagram clone backend for Flutter | Auth + Feed + Uploads + Comments + Notifications + Tests | **Boss Project** — Build the entire capstone backend |
 
 **🎯 Boss Challenge:** Execute the final Capstone Boss Challenge: build, test, and document the complete REST API for a photo-sharing mobile application!
+
+---
+
+### 🏛️ Track 5: Real-World Architecture & Patterns
+
+#### 📋 Module 17: Service Layer & Repository Pattern
+> *"Clean Architecture for enterprise codebases — separating presentation, domain, and persistence."*
+
+| # | Lesson Title | Flutter / Client Anchor | Key Server Concept | Interactive Task |
+|---|---|---|---|---|
+| **17.1** | **Fat Controllers = Fat Problems** | Bloated StatefulWidget vs Clean BLoC / Service | Single Responsibility Principle, separating transport from domain | **MCQ** — Architectural risks of business logic in controllers |
+| **17.2** | **The Repository Pattern for Data Access** | Abstract Repository in Flutter Clean Architecture | `PostRepositoryInterface`, IoC binding in `AppServiceProvider` | **Code Fill** — `$this->app->bind(Interface, Concrete)` |
+| **17.3** | **Single-Responsibility Action Classes** | Dart Clean Architecture UseCases (`call()`) | Invokable Action classes with `__invoke()`, database transactions | **MCQ** — Magic methods for direct invocation |
+| **17.4** | **Data Transfer Objects (DTOs)** | Freezed / Equatable typed models vs raw Maps | PHP 8.2 `readonly class`, immutability, `fromRequest()` | **Code Fill** — Define a typed `readonly class` DTO |
+
+**🎯 Boss Challenge:** Refactor a 200-line monolithic controller into a clean orchestrator using DTOs, an Invokable Action class, and a Repository contract.
+
+---
+
+#### 📋 Module 18: Events, Listeners & The Observer Pattern
+> *"Fire and forget domain events — decouple side-effects and asynchronous workflows."*
+
+| # | Lesson Title | Flutter / Client Anchor | Key Server Concept | Interactive Task |
+|---|---|---|---|---|
+| **18.1** | **Eloquent Model Observers** | `BlocObserver` / `ChangeNotifier` state listeners | Model lifecycle events (`creating`, `created`, `deleted`), slugification | **MCQ** — Pre-insert hooks (`creating` vs `created`) |
+| **18.2** | **Events & Listeners: Decoupling Side-Effects** | Dart `EventBus` / StreamController pub-sub | `OrderPlaced::dispatch($order)`, independent listener classes | **Code Fill** — Dispatch a domain event |
+| **18.3** | **Asynchronous Queued Event Listeners** | Dart background isolates (`compute()`) | `implements ShouldQueue`, non-blocking HTTP 201 responses | **MCQ** — Background queue execution interface |
+| **18.4** | **Event Sourcing & CQRS Mental Models** | Redux state machines / event replay | Immutable append-only event streams vs mutable database rows | **MCQ** — Tenets of Event Sourcing and CQRS |
+
+**🎯 Boss Challenge:** Build an event-driven order processing pipeline where placing an order triggers receipt generation, stock deduction, and push notifications asynchronously.
+
+---
+
+#### 📋 Module 19: Laravel Policies & Authorization (Gates & RBAC)
+> *"Authentication proves who you are; Authorization controls what you can do."*
+
+| # | Lesson Title | Flutter / Client Anchor | Key Server Concept | Interactive Task |
+|---|---|---|---|---|
+| **19.1** | **Authentication vs Authorization (401 vs 403)** | `AuthGuard` (logged in?) vs `RoleGuard` (admin?) | 401 Unauthorized vs 403 Forbidden, Gate closures | **MCQ** — Identifying 401 vs 403 status code boundaries |
+| **19.2** | **Writing Model Policy Classes** | Conditional UI rendering (`if (isOwner) EditBtn()`) | Policy classes, `$this->authorize('update', $post)` | **Code Fill** — Execute `$this->authorize()` check |
+| **19.3** | **Role-Based Access Control (RBAC) with Spatie** | Role-based feature flags in mobile state | Roles, permissions, database caching, route middleware | **MCQ** — Checking permissions vs hardcoding role names |
+| **19.4** | **Combining Sanctum Token Abilities with Policies** | Mobile token scopes in Dio headers | Token abilities (`tokenCan('posts:delete')`), multi-layer security | **Code Fill** — Validate Sanctum token ability |
+
+**🎯 Boss Challenge:** Implement fine-grained enterprise authorization combining Spatie RBAC, model policies, and scoped mobile widget tokens.
+
+---
+
+#### 📋 Module 20: Global Error Handling, Logging & Sentry
+> *"Production resilience, structured observability, and zero silent failures."*
+
+| # | Lesson Title | Flutter / Client Anchor | Key Server Concept | Interactive Task |
+|---|---|---|---|---|
+| **20.1** | **Domain-Specific Custom Exception Classes** | Custom Dart `AppException` subclasses | Semantic domain exceptions, self-rendering `render()` method | **MCQ** — Benefits of self-rendering exceptions |
+| **20.2** | **Laravel 11 Global Exception Handler** | Catch-all `FlutterError.onError` hook | `bootstrap/app.php` `withExceptions()`, preventing HTML error leaks | **Code Fill** — Guard API error envelopes |
+| **20.3** | **Structured Contextual Logging with Monolog** | Talker / Logger structured logging | Contextual JSON logs, channels (daily, Slack, CloudWatch) | **MCQ** — Associative array context vs string concatenation |
+| **20.4** | **Production Monitoring with Sentry & Tracing** | Sentry Flutter SDK distributed tracing | End-to-end tracing (`traceparent`), crash reporting, query history | **Code Fill** — Configure `SENTRY_LARAVEL_DSN` |
+
+**🎯 Boss Challenge:** Configure production observability for a mobile API: intercept uncaught exceptions into clean JSON envelopes, route critical alerts to Slack, and trace slow SQL queries with Sentry.
 
 ---
 

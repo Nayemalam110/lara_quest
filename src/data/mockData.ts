@@ -50,6 +50,10 @@ export type ModuleIcon =
   | "bell"
   | "activity"
   | "terminal"
+  | "layers"
+  | "workflow"
+  | "lock"
+  | "bug"
   | "orm"
   | "json"
   | "shield";
@@ -103,6 +107,13 @@ export const TRACKS: Track[] = [
     title: "Advanced API Engineering & DevOps",
     tagline: "Multipart file uploads, background queues, Redis caching, rate limiting, and automated testing",
     color: "#34d399",
+  },
+  {
+    id: "track-5",
+    number: 5,
+    title: "Real-World Architecture & Patterns",
+    tagline: "Service layer, repositories, single-responsibility actions, DTOs, events, listeners, policies, and global error handling",
+    color: "#fbbf24",
   },
 ];
 
@@ -3819,6 +3830,965 @@ public function store(StorePostRequest $request) { ... }`,
       },
     ],
   },
+
+  // ==============================================================================
+  // TRACK 5: REAL-WORLD ARCHITECTURE & PATTERNS
+  // ==============================================================================
+
+  {
+    id: "m17",
+    index: 17,
+    trackId: "track-5",
+    trackName: "Track 5: Real-World Architecture & Patterns",
+    title: "Service Layer & Repository Pattern",
+    tagline: "Clean Architecture for scalable enterprise codebases",
+    description:
+      "Separate presentation logic from business domain and data persistence. Escape massive controller syndrome with Services, Repositories, and Actions.",
+    color: "#fbbf24",
+    icon: "layers",
+    lessons: [
+      {
+        id: "m17l1",
+        moduleId: "m17",
+        title: "Fat Controllers = Fat Problems (Bloated BLoC vs Service Layer)",
+        readTime: "7 min",
+        xp: 45,
+        summary:
+          "Controllers handling validation, DB queries, emails, and payments become untestable monoliths. Move business logic into dedicated Service classes.",
+        flutterParallel: {
+          concept: "Bloated StatefulWidget vs Clean BLoC / Service Layer",
+          flutterFile: "lib/features/orders/presentation/order_cubit.dart",
+          laravelFile: "app/Services/OrderService.php",
+          flutterCode: `// BLoC / Service delegates heavy logic away from UI:
+class OrderCubit extends Cubit<OrderState> {
+  final OrderService _orderService;
+  OrderCubit(this._orderService) : super(OrderInitial());
+
+  Future<void> checkout(Cart cart) async {
+    emit(OrderLoading());
+    try {
+      final order = await _orderService.processOrder(cart);
+      emit(OrderSuccess(order));
+    } catch (e) {
+      emit(OrderFailure(e.toString()));
+    }
+  }
+}`,
+          laravelCode: `// Thin controller delegates to injected OrderService:
+class OrderController extends Controller {
+  public function __construct(
+    private OrderService \$orderService
+  ) {}
+
+  public function store(StoreOrderRequest \$request): JsonResponse {
+    \$order = \$this->orderService->processCheckout(
+      \$request->user(),
+      \$request->validated()
+    );
+    return response()->json(\$order, 201);
+  }
+}`,
+          explanation:
+            "In Flutter, putting network requests and business calculations directly inside build() or setState() makes UI unmaintainable; you extract it into BLoCs or Services. Similarly in Laravel, Controllers should only orchestrate: parse HTTP input, call a domain Service, and return a JSON response.",
+        },
+        content: [
+          "The Single Responsibility Principle (SRP) states that a class should have one, and only one, reason to change.",
+          "A Controller's sole responsibility is HTTP orchestration: accepting requests, calling domain logic, and formatting responses.",
+          "When order calculation, Stripe charges, and email dispatches are crammed into controller methods, testing without spinning up full HTTP requests becomes impossible.",
+          "Service classes encapsulate domain business rules so they can be reused across HTTP controllers, Artisan CLI commands, and asynchronous queue jobs.",
+        ],
+        challenge: {
+          type: "mcq",
+          question:
+            "What is the primary architectural danger of writing database queries, external payment calls, and emails directly inside a Laravel Controller?",
+          options: [
+            "It makes the business logic impossible to reuse in Artisan CLI commands or queue jobs without faking HTTP requests",
+            "Laravel will refuse to compile controllers that have more than 50 lines of code",
+            "It forces MySQL to downgrade to table-level locking",
+            "It disables PHP 8 type hinting for all parameters",
+          ],
+          correctAnswer: 0,
+          explanation:
+            "When business logic is trapped inside a Controller, you cannot execute that same logic from an Artisan console command, a queue job, or a test without constructing mock HTTP requests.",
+          xp: 25,
+        },
+      },
+      {
+        id: "m17l2",
+        moduleId: "m17",
+        title: "The Repository Pattern for Data Access",
+        readTime: "8 min",
+        xp: 50,
+        summary:
+          "Decouple domain business logic from Eloquent persistence with interfaces and Laravel's IoC container bindings.",
+        flutterParallel: {
+          concept: "Abstract Repository in Flutter Clean Architecture vs Laravel Repository Interface",
+          flutterFile: "lib/features/posts/domain/repositories/post_repository.dart",
+          laravelFile: "app/Repositories/Contracts/PostRepositoryInterface.php",
+          flutterCode: `// Abstract repository interface in Dart:
+abstract class PostRepository {
+  Future<List<Post>> getPublished();
+  Future<Post> findById(int id);
+  Future<void> save(Post post);
+}
+
+// Implementation injected via GetIt / Provider:
+class PostRepositoryImpl implements PostRepository {
+  final ApiClient api;
+  final CacheBox cache;
+  PostRepositoryImpl(this.api, this.cache);
+  ...
+}`,
+          laravelCode: `// Interface:
+interface PostRepositoryInterface {
+  public function getPublished(int \$limit = 20): Collection;
+  public function findById(int \$id): ?Post;
+}
+
+// Eloquent implementation:
+class EloquentPostRepository implements PostRepositoryInterface {
+  public function getPublished(int \$limit = 20): Collection {
+    return Post::where('is_published', true)->latest()->take(\$limit)->get();
+  }
+}`,
+          explanation:
+            "Clean Architecture in Flutter relies on abstract repository contracts so data sources (Remote API, Local Hive/Isar DB) can be swapped or mocked in unit tests. Laravel uses PHP interfaces bound to Eloquent implementations in AppServiceProvider, allowing seamless mocking in unit tests.",
+        },
+        content: [
+          "The Repository pattern mediates between the domain and data mapping layers, acting like an in-memory collection of domain objects.",
+          "By depending on PostRepositoryInterface rather than the concrete Post Eloquent model directly, your services remain isolated from SQL or ORM specifics.",
+          "Laravel's Service Container allows binding interfaces to implementations: $this->app->bind(PostRepositoryInterface::class, EloquentPostRepository::class);.",
+          "In unit tests, you can swap the database repository with an in-memory array repository or a Mockery mock without touching a real database.",
+        ],
+        challenge: {
+          type: "fill-blank",
+          question:
+            "Where do you bind an interface to its concrete implementation in Laravel's Service Container?",
+          code: `// In app/Providers/AppServiceProvider.php:\n\$this->app->{{blank}}(PostRepositoryInterface::class, EloquentPostRepository::class);`,
+          options: ["bind", "singleton", "scoped", "alias"],
+          correctAnswer: "bind",
+          explanation:
+            "$this->app->bind(Interface::class, Implementation::class) instructs the Laravel IoC container which concrete class to instantiate whenever the interface is type-hinted.",
+          xp: 30,
+        },
+      },
+      {
+        id: "m17l3",
+        moduleId: "m17",
+        title: "Single-Responsibility Action Classes",
+        readTime: "6 min",
+        xp: 45,
+        summary:
+          "Structure complex workflows into single-method invokable Action classes matching Clean Architecture UseCases.",
+        flutterParallel: {
+          concept: "Dart UseCase / Interactor vs Laravel Invokable Action Class",
+          flutterFile: "lib/features/auth/domain/usecases/register_user_usecase.dart",
+          laravelFile: "app/Actions/CreateUserAction.php",
+          flutterCode: `// Dart Clean Architecture UseCase:
+class RegisterUserUseCase {
+  final AuthRepository _repo;
+  RegisterUserUseCase(this._repo);
+
+  Future<User> call(RegisterParams params) async {
+    // Verify unique email, hash token, persist
+    return await _repo.register(params);
+  }
+}
+
+// Invoked directly:
+final user = await registerUser(params);`,
+          laravelCode: `// PHP 8 Invokable Action Class:
+class CreateUserAction {
+  public function __invoke(UserData \$data): User {
+    return DB::transaction(function () use (\$data) {
+      \$user = User::create([
+        'name' => \$data->name,
+        'email' => \$data->email,
+        'password' => Hash::make(\$data->password),
+      ]);
+      event(new UserRegistered(\$user));
+      return \$user;
+    });
+  }
+}`,
+          explanation:
+            "In Flutter domain-driven design, each business user story has its own UseCase with a single call() method. In modern Laravel, invokable Action classes implement __invoke() so they can be executed as $createUserAction($data). This keeps classes laser-focused on one job.",
+        },
+        content: [
+          "Service classes can sometimes become 'god objects' if they accumulate dozens of disparate methods like createUser, banUser, resetPassword, exportUserCsv.",
+          "Action classes solve this by following the Command/UseCase pattern: one class per business action with a single public __invoke() or execute() method.",
+          "Actions are trivially testable, easily composed within other actions, and can be dispatched directly as queued background jobs.",
+          "Because actions encapsulate database transactions (DB::transaction), data consistency is guaranteed across all callers.",
+        ],
+        challenge: {
+          type: "mcq",
+          question:
+            "Which PHP magic method allows an Action class instance to be invoked directly like a function (e.g. $action($data))?",
+          options: ["__invoke()", "__call()", "__construct()", "__execute()"],
+          correctAnswer: 0,
+          explanation:
+            "__invoke() is the PHP magic method that enables an object instance to be called directly as if it were a function.",
+          xp: 25,
+        },
+      },
+      {
+        id: "m17l4",
+        moduleId: "m17",
+        title: "Data Transfer Objects (DTOs)",
+        readTime: "7 min",
+        xp: 45,
+        summary:
+          "Replace loose associative arrays with typed, immutable PHP 8 readonly DTOs for rock-solid type safety.",
+        flutterParallel: {
+          concept: "Freezed / Equatable Dart Params vs PHP 8.2 readonly DTOs",
+          flutterFile: "lib/features/posts/data/models/create_post_dto.dart",
+          laravelFile: "app/DTOs/CreatePostDTO.php",
+          flutterCode: `// Immutable typed Dart model:
+@freezed
+class CreatePostDTO with _\$CreatePostDTO {
+  const factory CreatePostDTO({
+    required String title,
+    required String content,
+    @Default(false) bool isDraft,
+    List<int>? tagIds,
+  }) = _CreatePostDTO;
+}`,
+          laravelCode: `// PHP 8.2 readonly DTO:
+readonly class CreatePostDTO {
+  public function __construct(
+    public string \$title,
+    public string \$content,
+    public bool \$isDraft = false,
+    public array \$tagIds = [],
+  ) {}
+
+  public static function fromRequest(StorePostRequest \$request): self {
+    return new self(
+      title: \$request->string('title'),
+      content: \$request->string('content'),
+      isDraft: \$request->boolean('is_draft', false),
+      tagIds: \$request->input('tag_ids', []),
+    );
+  }
+}`,
+          explanation:
+            "Passing raw Map<String, dynamic> around a Flutter app loses compiler guarantees and auto-completion. In PHP, passing raw associative arrays ($request->all()) has the same flaw. Modern Laravel applications transform FormRequests into typed readonly DTOs.",
+        },
+        content: [
+          "Associative arrays like ['title' => '...'] provide zero IDE autocomplete and no static analysis protection against typos like $data['titel'].",
+          "PHP 8.2 introduced readonly class, where every property is immutable once assigned in constructor property promotion.",
+          "Static factory methods like fromRequest(StorePostRequest $request) provide a clean translation layer between HTTP inputs and domain types.",
+          "DTOs can be safely passed to actions, services, events, and background queue workers without unexpected mutation.",
+        ],
+        challenge: {
+          type: "fill-blank",
+          question:
+            "Which PHP 8 keyword ensures all properties in a class are immutable after initial instantiation?",
+          code: `{{blank}} class CreatePostDTO {\n  public function __construct(public string \$title) {}\n}`,
+          options: ["readonly", "final", "immutable", "static"],
+          correctAnswer: "readonly",
+          explanation:
+            "In PHP 8.2+, marking a class as readonly automatically marks all declared properties as readonly and prevents dynamic properties from being set.",
+          xp: 30,
+        },
+      },
+    ],
+  },
+
+  {
+    id: "m18",
+    index: 18,
+    trackId: "track-5",
+    trackName: "Track 5: Real-World Architecture & Patterns",
+    title: "Events, Listeners & The Observer Pattern",
+    tagline: "Decouple side-effects and asynchronous workflows",
+    description:
+      "Fire and forget domain events. Trigger emails, push notifications, and analytics without slowing down your HTTP response.",
+    color: "#fbbf24",
+    icon: "workflow",
+    lessons: [
+      {
+        id: "m18l1",
+        moduleId: "m18",
+        title: "Eloquent Model Observers",
+        readTime: "7 min",
+        xp: 45,
+        summary:
+          "Hook into Eloquent lifecycle events (creating, created, updating, deleted) to automate slugs, audit trails, and UUIDs cleanly.",
+        flutterParallel: {
+          concept: "BlocObserver / ChangeNotifier vs Eloquent Model Observers",
+          flutterFile: "lib/core/observers/app_bloc_observer.dart",
+          laravelFile: "app/Observers/PostObserver.php",
+          flutterCode: `// Flutter BlocObserver captures state transitions across all blocs:
+class SimpleBlocObserver extends BlocObserver {
+  @override
+  void onChange(BlocBase bloc, Change change) {
+    super.onChange(bloc, change);
+    print('Bloc: \${bloc.runtimeType}, Change: \$change');
+  }
+}`,
+          laravelCode: `// Eloquent Observer hooks into model lifecycle:
+class PostObserver {
+  public function creating(Post \$post): void {
+    if (empty(\$post->slug)) {
+      \$post->slug = Str::slug(\$post->title);
+    }
+  }
+
+  public function deleted(Post \$post): void {
+    Log::info("Post deleted", ['id' => \$post->id]);
+  }
+}`,
+          explanation:
+            "In Flutter, BlocObserver intercepts lifecycle changes across the entire app state. In Laravel, Model Observers cleanly extract side effects out of the model class, firing automatically whenever a record is created, updated, or deleted.",
+        },
+        content: [
+          "Eloquent fires several lifecycle events: retrieved, creating, created, updating, updated, saving, saved, deleting, deleted, restoring, restored.",
+          "The -ing events (e.g. creating) fire before the database transaction commits, allowing you to modify model attributes or return false to abort the save.",
+          "The -ed events (e.g. created) fire after the record is persisted, ideal for clearing caches or dispatching external notifications.",
+          "In Laravel 11, observers can be registered using PHP 8 attributes: #[ObservedBy([PostObserver::class])] class Post extends Model { ... }.",
+        ],
+        challenge: {
+          type: "mcq",
+          question:
+            "Which observer lifecycle event should you use if you want to generate and assign a slug to an Eloquent model BEFORE it gets inserted into MySQL?",
+          options: ["creating", "created", "saved", "retrieved"],
+          correctAnswer: 0,
+          explanation:
+            "creating fires before the SQL INSERT statement executes, allowing you to set or modify attributes directly on the model instance.",
+          xp: 25,
+        },
+      },
+      {
+        id: "m18l2",
+        moduleId: "m18",
+        title: "Events & Listeners: Decoupling Side-Effects",
+        readTime: "7 min",
+        xp: 50,
+        summary:
+          "Decouple core business transactions from secondary side-effects using Laravel's publish-subscribe EventDispatcher.",
+        flutterParallel: {
+          concept: "EventBus / StreamController in Flutter vs Laravel Events & Listeners",
+          flutterFile: "lib/core/events/event_bus.dart",
+          laravelFile: "app/Events/OrderPlaced.php",
+          flutterCode: `// Dart EventBus / Stream-based pub-sub:
+final eventBus = EventBus();
+
+// Publish:
+eventBus.fire(OrderPlacedEvent(order));
+
+// Subscribe in separate services:
+eventBus.on<OrderPlacedEvent>().listen((event) {
+  notificationService.sendReceipt(event.order);
+  analyticsService.trackPurchase(event.order);
+});`,
+          laravelCode: `// 1. Dispatch event in Controller/Service:
+OrderPlaced::dispatch(\$order);
+
+// 2. Independent listeners in app/Listeners/:
+class SendOrderReceipt {
+  public function handle(OrderPlaced \$event): void {
+    Mail::to(\$event->order->user)->send(new OrderReceiptMail(\$event->order));
+  }
+}
+
+class UpdateInventoryStock {
+  public function handle(OrderPlaced \$event): void {
+    InventoryService::decrement(\$event->order->items);
+  }
+}`,
+          explanation:
+            "In Flutter, an EventBus lets disparate widgets and services react to actions without direct coupling. In Laravel, firing an Event decouples the checkout process from sending emails, alerting Slack, and notifying inventory.",
+        },
+        content: [
+          "The Publish-Subscribe pattern ensures the class executing the primary action doesn't know or care about who is listening.",
+          "An Event class is a simple data container containing only the relevant models or DTOs (e.g. public Order $order).",
+          "Multiple Listeners can subscribe to the same event. Laravel executes each listener's handle(Event $event) method.",
+          "Event discovery in Laravel automatically binds listeners located in app/Listeners based on the type-hint in their handle() method.",
+        ],
+        challenge: {
+          type: "fill-blank",
+          question:
+            "What static method on an Event class dispatches the event through Laravel's EventDispatcher?",
+          code: `// In OrderService.php:\nOrderPlaced::{{blank}}(\$order);`,
+          options: ["dispatch", "fire", "trigger", "emit"],
+          correctAnswer: "dispatch",
+          explanation:
+            "EventName::dispatch(...$params) is the standard Laravel helper that instantiates and fires the event to all registered listeners.",
+          xp: 30,
+        },
+      },
+      {
+        id: "m18l3",
+        moduleId: "m18",
+        title: "Asynchronous Queued Event Listeners",
+        readTime: "7 min",
+        xp: 50,
+        summary:
+          "Offload slow side-effects to background Redis queues by adding implements ShouldQueue to any Listener.",
+        flutterParallel: {
+          concept: "Dart Isolate / background compute() vs Laravel ShouldQueue Listeners",
+          flutterFile: "lib/core/services/background_sync.dart",
+          laravelFile: "app/Listeners/SendPushNotification.php",
+          flutterCode: `// Dart background isolate for non-blocking UI:
+Future<void> runHeavyTaskInBackground(Order order) async {
+  // compute runs in a separate thread so UI does not stutter
+  await compute(generatePdfReceipt, order.toJson());
+}`,
+          laravelCode: `// Just implement ShouldQueue to make it run in background:
+class SendPushNotification implements ShouldQueue {
+  use InteractsWithQueue;
+
+  public function handle(OrderPlaced \$event): void {
+    // Runs on background Redis queue worker!
+    // The mobile Flutter client gets its HTTP 201 immediately!
+    FcmService::send(
+      \$event->order->user->fcm_token,
+      'Your order has been placed successfully!'
+    );
+  }
+}`,
+          explanation:
+            "In Flutter, running CPU-heavy or slow operations on the main thread causes UI frame drops (jank), so you spawn background isolates. On the backend, sending FCM push notifications or external webhook calls in the HTTP request blocks the Flutter user from getting a response. implements ShouldQueue serializes the listener to Redis and returns the response in ~15ms.",
+        },
+        content: [
+          "Any Listener implementing the Illuminate\\Contracts\\Queue\\ShouldQueue interface is automatically pushed to the queue instead of running synchronously.",
+          "This guarantees HTTP latency stays below 50ms regardless of whether 10 emails or external webhooks need to be triggered.",
+          "Queued listeners support retry attempts (public $tries = 3;), timeouts, and custom queue channels (e.g. public $queue = 'notifications';).",
+          "Failed queued listeners automatically write to the failed_jobs database table and can be retried via php artisan queue:retry.",
+        ],
+        challenge: {
+          type: "mcq",
+          question:
+            "Which interface must a Laravel Listener implement to instruct Laravel to execute its handle() method asynchronously via background queue workers?",
+          options: ["ShouldQueue", "IsAsync", "QueueableInterface", "BackgroundWorker"],
+          correctAnswer: 0,
+          explanation:
+            "Implementing Illuminate\\Contracts\\Queue\\ShouldQueue marks the listener for queue serialization without needing any changes to the dispatching code.",
+          xp: 25,
+        },
+      },
+      {
+        id: "m18l4",
+        moduleId: "m18",
+        title: "Event Sourcing & CQRS Mental Models",
+        readTime: "8 min",
+        xp: 50,
+        summary:
+          "Understand Event Sourcing and Command Query Responsibility Segregation (CQRS) for high-audit fintech and gaming backends.",
+        flutterParallel: {
+          concept: "Redux State Machine / Replay vs Event Sourcing",
+          flutterFile: "lib/features/wallet/state/wallet_state.dart",
+          laravelFile: "app/Events/WalletCredited.php",
+          flutterCode: `// Redux / HydratedBloc replays actions to restore balance:
+int reduceWallet(int currentBalance, dynamic action) {
+  if (action is DepositAction) return currentBalance + action.amount;
+  if (action is WithdrawAction) return currentBalance - action.amount;
+  return currentBalance;
+}`,
+          laravelCode: `// In Event Sourcing, state is reconstructed from past events:
+class BankAccount {
+  public int \$balance = 0;
+
+  public function applyMoneyDeposited(MoneyDeposited \$event): void {
+    \$this->balance += \$event->amount;
+  }
+
+  public function applyMoneyWithdrawn(MoneyWithdrawn \$event): void {
+    \$this->balance -= \$event->amount;
+  }
+}`,
+          explanation:
+            "In standard CRUD, a user's wallet balance is stored as a mutable integer column in MySQL that gets updated. In Event Sourcing, the database stores an immutable append-only ledger of events (Deposited, Withdrawn, Transferred). Current balance is computed by projecting that event stream, guaranteeing a tamper-proof audit trail.",
+        },
+        content: [
+          "Traditional CRUD updates mutate state in place: UPDATE accounts SET balance = balance + 100 WHERE id = 1 destroys past state history.",
+          "Event Sourcing stores domain events in an immutable, append-only event store: AccountCreated, FundsDeposited, CardFrozen.",
+          "CQRS (Command Query Responsibility Segregation) separates write commands (e.g., DepositFundsCommand) from read queries (e.g., optimized read tables or Elasticsearch indices).",
+          "Packages like spatie/laravel-event-sourcing bring aggregate roots, projections, and stored event replays to Laravel.",
+        ],
+        challenge: {
+          type: "mcq",
+          question:
+            "What is the primary difference between a traditional CRUD database table and an Event Sourced event store?",
+          options: [
+            "Event Sourcing uses an immutable append-only ledger of events rather than overwriting mutable rows in place",
+            "Event Sourcing only works with NoSQL databases and cannot run on PostgreSQL or MySQL",
+            "Event Sourcing requires Flutter mobile apps to run a local PHP runtime",
+            "Event Sourcing eliminates the need for user authentication",
+          ],
+          correctAnswer: 0,
+          explanation:
+            "Event Sourcing models state as an append-only sequence of immutable events, allowing you to reconstruct state at any point in history and maintain a full audit trail.",
+          xp: 30,
+        },
+      },
+    ],
+  },
+
+  {
+    id: "m19",
+    index: 19,
+    trackId: "track-5",
+    trackName: "Track 5: Real-World Architecture & Patterns",
+    title: "Laravel Policies & Authorization (Gates & RBAC)",
+    tagline: "Fine-grained permissions and role-based access control",
+    description:
+      "Authentication proves who you are; Authorization controls what you can do. Master Gates, Model Policies, and Spatie RBAC.",
+    color: "#fbbf24",
+    icon: "lock",
+    lessons: [
+      {
+        id: "m19l1",
+        moduleId: "m19",
+        title: "Authentication vs Authorization (401 vs 403)",
+        readTime: "7 min",
+        xp: 45,
+        summary:
+          "Understand the fundamental boundary between identifying a user (401 Unauthorized) and verifying their permissions (403 Forbidden).",
+        flutterParallel: {
+          concept: "AuthGuard vs RoleGuard in Flutter Navigation",
+          flutterFile: "lib/core/router/route_guards.dart",
+          laravelFile: "app/Providers/AuthServiceProvider.php",
+          flutterCode: `// Flutter Route Guard checking auth vs permission:
+String? guard(BuildContext context, GoRouterState state) {
+  final user = authNotifier.currentUser;
+  // 1. Not logged in -> 401 equivalent:
+  if (user == null) return '/login';
+  // 2. Logged in but not an admin -> 403 equivalent:
+  if (state.matchedLocation.startsWith('/admin') && !user.isAdmin) {
+    return '/forbidden';
+  }
+  return null;
+}`,
+          laravelCode: `// Gate definition in Laravel:
+Gate::define('access-admin-panel', function (User \$user) {
+  return \$user->is_admin;
+});
+
+// In Controller:
+public function index() {
+  // If not admin, aborts with HTTP 403 Forbidden!
+  Gate::authorize('access-admin-panel');
+  return AdminResource::collection(User::all());
+}`,
+          explanation:
+            "HTTP 401 means 'You are not logged in; please authenticate'. HTTP 403 means 'We know who you are, but you lack permission to perform this action'. Laravel Gates let you define closure-based authorization checks easily.",
+        },
+        content: [
+          "Authentication asks: 'Who are you?' (resolved by Sanctum, Session cookies, or Bearer tokens).",
+          "Authorization asks: 'Are you permitted to do this specific action to this specific resource?'",
+          "Laravel provides two primary mechanisms for authorization: Gates (closure-based) and Policies (class-based).",
+          "Failing a Gate or Policy check automatically throws an AuthorizationException, which renders as an HTTP 403 Forbidden JSON response for API requests.",
+        ],
+        challenge: {
+          type: "mcq",
+          question:
+            "When an authenticated user attempts to delete a blog post created by another user, which HTTP status code must the API return?",
+          options: ["403 Forbidden", "401 Unauthorized", "404 Not Found", "422 Unprocessable Content"],
+          correctAnswer: 0,
+          explanation:
+            "HTTP 403 Forbidden is used when the server understands who the user is, but refuses to authorize the operation due to insufficient permissions.",
+          xp: 25,
+        },
+      },
+      {
+        id: "m19l2",
+        moduleId: "m19",
+        title: "Writing Model Policy Classes",
+        readTime: "8 min",
+        xp: 50,
+        summary:
+          "Organize authorization logic around Eloquent models using generated Policy classes and $this->authorize().",
+        flutterParallel: {
+          concept: "Conditional UI rendering in Flutter vs Server Policy Enforcement",
+          flutterFile: "lib/features/posts/presentation/widgets/post_card.dart",
+          laravelFile: "app/Policies/PostPolicy.php",
+          flutterCode: `// Mobile UI conditionally displays edit button:
+if (currentUser.id == post.authorId || currentUser.isAdmin)
+  IconButton(
+    icon: const Icon(Icons.edit),
+    onPressed: () => context.push('/posts/\${post.id}/edit'),
+  ),`,
+          laravelCode: `// Server Policy enforces absolute security:
+class PostPolicy {
+  public function update(User \$user, Post \$post): bool {
+    return \$user->id === \$post->user_id || \$user->is_admin;
+  }
+
+  public function delete(User \$user, Post \$post): bool {
+    return \$user->id === \$post->user_id;
+  }
+}
+
+// Controller usage:
+public function update(UpdatePostRequest \$request, Post \$post) {
+  \$this->authorize('update', \$post);
+  \$post->update(\$request->validated());
+  return new PostResource(\$post);
+}`,
+          explanation:
+            "Never rely solely on Flutter UI hiding the 'Delete' button. A malicious client can send a raw PUT or DELETE request using curl or Postman. Laravel Policies enforce business authorization rules on the server.",
+        },
+        content: [
+          "Policies are classes that organize authorization logic around a specific model. Create them with php artisan make:policy PostPolicy --model=Post.",
+          "Laravel automatically detects policies matching the naming convention app/Policies/{Model}Policy.php.",
+          "The first argument in policy methods is always the authenticated User model, injected automatically by Laravel.",
+          "You can authorize requests in controllers via $this->authorize('update', $post); or inside FormRequests using the authorize() method.",
+        ],
+        challenge: {
+          type: "fill-blank",
+          question:
+            "What controller method evaluates a policy method against a model instance and aborts with a 403 if unauthorized?",
+          code: `public function update(Request \$request, Post \$post) {\n  \$this->{{blank}}('update', \$post);\n  \$post->update(\$request->all());\n}`,
+          options: ["authorize", "can", "validate", "check"],
+          correctAnswer: "authorize",
+          explanation:
+            "$this->authorize('update', $post) verifies the policy and automatically throws an AuthorizationException (HTTP 403) if it returns false.",
+          xp: 30,
+        },
+      },
+      {
+        id: "m19l3",
+        moduleId: "m19",
+        title: "Role-Based Access Control (RBAC) with Spatie Permissions",
+        readTime: "8 min",
+        xp: 50,
+        summary:
+          "Implement industry-standard roles and granular permissions using spatie/laravel-permission.",
+        flutterParallel: {
+          concept: "Role-Based Access in Flutter State vs Backend Spatie RBAC",
+          flutterFile: "lib/features/profile/domain/entities/user.dart",
+          laravelFile: "database/seeders/RolesAndPermissionsSeeder.php",
+          flutterCode: `// Flutter user checking permissions:
+if (user.hasPermission('publish-articles')) {
+  showPublishDialog();
+} else {
+  showUpgradePrompt();
+}
+`,
+          laravelCode: `// Spatie Permissions setup:
+\$editor = Role::create(['name' => 'editor']);
+\$publish = Permission::create(['name' => 'publish-articles']);
+\$editor->givePermissionTo(\$publish);
+
+// User assignment:
+\$user->assignRole('editor');
+
+// Protection via middleware in routes/api.php:
+Route::post('/articles/{id}/publish', [ArticleController::class, 'publish'])
+  ->middleware('permission:publish-articles');`,
+          explanation:
+            "Hardcoding $user->is_admin does not scale when an app grows to require Managers, Editors, Moderators, and Support Agents. The spatie/laravel-permission package provides roles and granular permissions persisted in database tables.",
+        },
+        content: [
+          "Role-Based Access Control (RBAC) maps permissions to roles, and assigns roles to users.",
+          "Best practice: Always check for specific permissions ($user->can('edit-articles')) rather than role names ($user->hasRole('editor')) in business code.",
+          "This allows roles to be modified or created dynamically from an admin dashboard without rewriting controller code.",
+          "The Spatie package automatically caches all user roles and permissions in Redis or Memcached, keeping database overhead near zero.",
+        ],
+        challenge: {
+          type: "mcq",
+          question:
+            "Why is it considered an architectural best practice to check permissions (e.g. $user->can('publish-posts')) rather than role names (e.g. $user->hasRole('editor')) in controller code?",
+          options: [
+            "Permissions can be reassigned to different or new roles dynamically via database without changing code",
+            "Role names are automatically converted to uppercase by PHP, causing string comparison bugs",
+            "Checking role names disables database foreign key constraints",
+            "Role checks only work when using GraphQL, not REST",
+          ],
+          correctAnswer: 0,
+          explanation:
+            "Decoupling code from role names means you can create a new role (e.g. 'Senior Journalist') and grant it existing permissions without modifying a single line of backend controller code.",
+          xp: 25,
+        },
+      },
+      {
+        id: "m19l4",
+        moduleId: "m19",
+        title: "Combining Sanctum Token Abilities with Model Policies",
+        readTime: "7 min",
+        xp: 45,
+        summary:
+          "Secure mobile API tokens by binding granular abilities (['posts:read', 'orders:create']) with server-side authorization.",
+        flutterParallel: {
+          concept: "OAuth Token Scopes in Flutter Dio vs Sanctum Token Abilities",
+          flutterFile: "lib/core/network/auth_interceptor.dart",
+          laravelFile: "routes/api.php",
+          flutterCode: `// Mobile Flutter client passing scoped bearer token:
+dio.options.headers['Authorization'] = 'Bearer 3|m8e2V...';
+// Mobile widget token configured strictly for read operations`,
+          laravelCode: `// 1. Issue token with restricted abilities:
+\$token = \$user->createToken('widget-token', ['posts:read'])->plainTextToken;
+
+// 2. Protect route with ability middleware:
+Route::delete('/posts/{id}', [PostController::class, 'destroy'])
+  ->middleware(['auth:sanctum', 'ability:posts:delete']);
+
+// 3. Or verify in Controller/Policy:
+if (!\$request->user()->tokenCan('posts:delete')) {
+  abort(403, 'Token lacks delete ability');
+}`,
+          explanation:
+            "If a user has an admin role, but generates a token for a third-party webhook or a lightweight Flutter Home Screen widget, that token should NOT have full delete permissions. Sanctum token abilities limit what a specific API token is permitted to do.",
+        },
+        content: [
+          "Laravel Sanctum allows tokens to be issued with custom abilities: $user->createToken('mobile', ['posts:create', 'posts:read']).",
+          "The tokenCan(string $ability) method checks whether the active token possesses the required permission.",
+          "The ability middleware (middleware('ability:posts:create')) requires the token to have all listed abilities.",
+          "A complete authorization check validates BOTH: (1) Does the user have the permission? AND (2) Does this specific token grant this ability?",
+        ],
+        challenge: {
+          type: "fill-blank",
+          question:
+            "Which method on the authenticated user model checks whether the active Sanctum personal access token has a specific ability?",
+          code: `if (!\$request->user()->{{blank}}('orders:refund')) {\n  abort(403, 'Unauthorized token');\n}`,
+          options: ["tokenCan", "hasAbility", "canToken", "tokenHas"],
+          correctAnswer: "tokenCan",
+          explanation:
+            "$user->tokenCan('ability') inspects the abilities array stored in the personal_access_tokens table for the current request.",
+          xp: 30,
+        },
+      },
+    ],
+  },
+
+  {
+    id: "m20",
+    index: 20,
+    trackId: "track-5",
+    trackName: "Track 5: Real-World Architecture & Patterns",
+    title: "Global Error Handling, Logging & Sentry",
+    tagline: "Production resilience, structured observability, and zero silent failures",
+    description:
+      "Tame unhandled exceptions, transform stack traces into predictable JSON API envelopes, configure Monolog channels, and track crashes in Sentry.",
+    color: "#fbbf24",
+    icon: "bug",
+    lessons: [
+      {
+        id: "m20l1",
+        moduleId: "m20",
+        title: "Domain-Specific Custom Exception Classes",
+        readTime: "7 min",
+        xp: 45,
+        summary:
+          "Replace generic exceptions with semantic domain exceptions that encapsulate HTTP status codes and API error envelopes.",
+        flutterParallel: {
+          concept: "Custom Exception classes in Dart vs Self-Rendering Exceptions in Laravel",
+          flutterFile: "lib/core/errors/exceptions.dart",
+          laravelFile: "app/Exceptions/InsufficientFundsException.php",
+          flutterCode: `// Custom Dart domain exceptions:
+abstract class AppException implements Exception {
+  final String message;
+  final String code;
+  AppException(this.message, this.code);
+}
+
+class InsufficientFundsException extends AppException {
+  InsufficientFundsException([String? msg])
+      : super(msg ?? 'Insufficient account balance', 'INSUFFICIENT_FUNDS');
+}`,
+          laravelCode: `// Self-rendering domain exception in Laravel:
+class InsufficientFundsException extends Exception {
+  public function __construct(
+    public int \$available,
+    public int \$required
+  ) {
+    parent::__construct("Required \${required} cents, but only \${available} available.");
+  }
+
+  public function render(Request \$request): JsonResponse {
+    return response()->json([
+      'error_code' => 'INSUFFICIENT_FUNDS',
+      'message' => \$this->getMessage(),
+      'details' => ['available' => \$this->available, 'required' => \$this->required],
+    ], 422);
+  }
+}`,
+          explanation:
+            "Throwing generic \\Exception('Something went wrong') leads to messy 500 Internal Server Error responses. In modern Laravel, domain exceptions implement their own render($request) method, allowing domain classes to dictate the exact JSON payload and HTTP status code returned to Flutter.",
+        },
+        content: [
+          "Custom domain exceptions provide clarity: throw new ProductOutOfStockException($product) explains the business rule failure immediately.",
+          "Laravel recognizes the render(Request $request) method inside an exception class, automatically converting it to a response when thrown.",
+          "Laravel also recognizes report() on custom exceptions, allowing you to log or ignore specific domain errors before sending to Sentry.",
+          "This prevents business rule rejections (e.g. wrong coupon code) from polluting error tracking logs with false-positive 500 alerts.",
+        ],
+        challenge: {
+          type: "mcq",
+          question:
+            "What method can you define on a custom PHP Exception class to instruct Laravel how to transform that exception into an HTTP JSON response?",
+          options: ["render()", "toResponse()", "toJson()", "handle()"],
+          correctAnswer: 0,
+          explanation:
+            "Laravel checks for a render($request) method on any caught exception and uses its return value as the HTTP response.",
+          xp: 25,
+        },
+      },
+      {
+        id: "m20l2",
+        moduleId: "m20",
+        title: "Laravel 11 Global Exception Handler (bootstrap/app.php)",
+        readTime: "8 min",
+        xp: 50,
+        summary:
+          "Configure global exception interception in Laravel 11 using withExceptions() to ensure API requests never receive raw HTML.",
+        flutterParallel: {
+          concept: "Global Flutter onError Hook vs Laravel withExceptions",
+          flutterFile: "lib/main.dart",
+          laravelFile: "bootstrap/app.php",
+          flutterCode: `// Catch-all Flutter global error boundaries:
+void main() {
+  FlutterError.onError = (details) {
+    FlutterError.presentError(details);
+    Sentry.captureException(details.exception, stackTrace: details.stack);
+  };
+  PlatformDispatcher.instance.onError = (error, stack) {
+    Sentry.captureException(error, stackTrace: stack);
+    return true;
+  };
+  runApp(const MyApp());
+}`,
+          laravelCode: `// In bootstrap/app.php (Laravel 11+):
+return Application::configure(basePath: dirname(__DIR__))
+  ->withRouting(api: __DIR__.'/../routes/api.php')
+  ->withExceptions(function (Exceptions \$exceptions) {
+    // Intercept ModelNotFoundException for API routes:
+    \$exceptions->render(function (NotFoundHttpException \$e, Request \$request) {
+      if (\$request->is('api/*')) {
+        return response()->json([
+          'error' => 'RESOURCE_NOT_FOUND',
+          'message' => 'The requested endpoint or record does not exist.'
+        ], 404);
+      }
+    });
+  })->create();`,
+          explanation:
+            "Nothing breaks a Flutter mobile app faster than receiving a 500 HTML stack trace page when Dio is expecting a JSON response (FormatException: Unexpected character). Configuring withExceptions ensures all uncaught exceptions return a standardized JSON error format.",
+        },
+        content: [
+          "In Laravel 11, the legacy app/Exceptions/Handler.php class was replaced by the clean withExceptions() closure in bootstrap/app.php.",
+          "The $exceptions->render() closure allows you to intercept any exception type (e.g. NotFoundHttpException, AuthenticationException) and return a custom JSON envelope.",
+          "Always guard with if ($request->is('api/*') || $request->wantsJson()) so web routes (if any) retain their standard error pages.",
+          "The $exceptions->dontReport([CustomExpectedException::class]) method prevents benign business exceptions from flooding log files.",
+        ],
+        challenge: {
+          type: "fill-blank",
+          question:
+            "Which file in Laravel 11 configures the global exception handler and routing via fluid application builders?",
+          code: `// In {{blank}}/app.php:\n->withExceptions(function (Exceptions \$exceptions) { ... })`,
+          options: ["bootstrap", "config", "app", "routes"],
+          correctAnswer: "bootstrap",
+          explanation:
+            "In Laravel 11, application bootstrapping, routing, middleware, and exception handling are centralized in bootstrap/app.php.",
+          xp: 30,
+        },
+      },
+      {
+        id: "m20l3",
+        moduleId: "m20",
+        title: "Structured Contextual Logging with Monolog",
+        readTime: "7 min",
+        xp: 45,
+        summary:
+          "Implement searchable, structured JSON logging with Monolog channels to monitor transactions and debug production anomalies.",
+        flutterParallel: {
+          concept: "Talker / Logger structured logging in Flutter vs Laravel Log channels",
+          flutterFile: "lib/core/utils/app_logger.dart",
+          laravelFile: "config/logging.php",
+          flutterCode: `// Structured logging in Flutter:
+talker.warning('Payment retry initiated', {
+  'attempt': 2,
+  'cartId': 'cart_123',
+  'userId': 42,
+});`,
+          laravelCode: `// Structured logging with context in Laravel:
+Log::warning('Payment retry initiated', [
+  'attempt' => 2,
+  'cart_id' => \$cart->id,
+  'user_id' => auth()->id(),
+  'ip' => request()->ip(),
+]);
+
+// Urgent alerts straight to Slack / Discord webhook channel:
+Log::channel('slack')->critical('Stripe webhook signature failed!', [
+  'header' => request()->header('Stripe-Signature'),
+]);`,
+          explanation:
+            "String concatenation logging like Log::info('User ' . $id . ' did order') is unsearchable in modern log tools like Datadog, AWS CloudWatch, or Grafana Loki. Passing an associative array as the second argument produces structured JSON logs with queryable attributes.",
+        },
+        content: [
+          "Laravel uses Monolog under the hood, supporting multiple channels: single, daily, slack, syslog, errorlog, and stack.",
+          "Daily logs automatically rotate log files (storage/logs/laravel-2026-10-01.log) and retain a configurable number of days.",
+          "Log context: Log::withContext(['request_id' => Str::uuid()->toString()]) attaches metadata to every subsequent log entry in that request cycle.",
+          "Channel routing: Direct critical errors to Slack or PagerDuty while sending standard debug info to daily files.",
+        ],
+        challenge: {
+          type: "mcq",
+          question:
+            "Why is passing context as an associative array to Log::info($msg, $context) superior to string concatenation?",
+          options: [
+            "It enables log aggregators (Datadog, CloudWatch) to parse, filter, and index fields as structured JSON",
+            "It automatically encrypts the message using AES-256 before writing to disk",
+            "It prevents MySQL queries from timing out during high load",
+            "It translates English log messages to the user's localized language",
+          ],
+          correctAnswer: 0,
+          explanation:
+            "Passing structured context allows log processors to ingest entries as key-value JSON, making it effortless to filter by user_id, order_id, or status_code.",
+          xp: 25,
+        },
+      },
+      {
+        id: "m20l4",
+        moduleId: "m20",
+        title: "Production Monitoring with Sentry & Distributed Tracing",
+        readTime: "8 min",
+        xp: 50,
+        summary:
+          "Integrate real-time crash reporting and distributed tracing across your Flutter client and Laravel API using Sentry.",
+        flutterParallel: {
+          concept: "Sentry Flutter SDK vs Sentry Laravel SDK Distributed Tracing",
+          flutterFile: "lib/main.dart",
+          laravelFile: "config/sentry.php",
+          flutterCode: `// Flutter client sends traceparent header on HTTP calls:
+await SentryFlutter.init(
+  (options) => options.dsn = 'https://abc@sentry.io/123',
+  appRunner: () => runApp(const MyApp()),
+);
+// Dio automatically propagates Sentry distributed tracing headers!`,
+          laravelCode: `// Laravel automatically links backend spans to mobile trace:
+// composer require sentry/sentry-laravel
+// SENTRY_LARAVEL_DSN=https://xyz@sentry.io/456 in .env
+
+// Any uncaught 500 is captured with:
+// 1. Full stack trace & PHP line numbers
+// 2. Exact SQL queries executed before crash
+// 3. Authenticated user ID & request headers
+// 4. Flutter client app version and device OS`,
+          explanation:
+            "When a Flutter user encounters a failed API call, Sentry's distributed tracing connects the client-side Dart stack trace directly to the backend Laravel exception and the exact database query that caused the failure.",
+        },
+        content: [
+          "Sentry captures unhandled exceptions in real time, notifying engineers via Slack, email, or PagerDuty within seconds.",
+          "Breadcrumbs track user actions before the crash: e.g. Route visited -> Button tapped -> SQL query executed -> Exception thrown.",
+          "Distributed Tracing: The sentry-trace header links the mobile Flutter session directly to the server-side request lifecycle.",
+          "Performance Monitoring flags slow database queries, external API bottlenecks, and queue latency regressions before users complain.",
+        ],
+        challenge: {
+          type: "fill-blank",
+          question:
+            "Which environment variable in .env configures the destination endpoint for the Sentry Laravel SDK?",
+          code: `// In .env:\n{{blank}}=https://examplePublicKey@o0.ingest.sentry.io/0`,
+          options: ["SENTRY_LARAVEL_DSN", "SENTRY_API_KEY", "SENTRY_PROJECT_ID", "SENTRY_SECRET"],
+          correctAnswer: "SENTRY_LARAVEL_DSN",
+          explanation:
+            "SENTRY_LARAVEL_DSN is the Data Source Name that tells the Sentry SDK where to securely submit crash reports and performance traces.",
+          xp: 30,
+        },
+      },
+    ],
+  },
 ];
 
 /* ------------------------- per-lesson visuals --------------------- */
@@ -4464,6 +5434,161 @@ export const lessonVisuals: Record<string, LessonVisual> = {
       { label: "Dart Client Generator", lang: "bash", code: "flutter pub run swagger_parser\n-> Generates typed PostModel.dart & ApiClient.dart" },
     ],
     note: "OpenAPI specifications keep backend code and Flutter mobile data models perfectly synchronized with zero manual friction.",
+  },
+
+  // Track 5: Real-World Architecture & Patterns
+  m17l1: {
+    kind: "pipeline",
+    nodes: [
+      { label: "HTTP Request", lang: "http", code: "POST /api/orders\nContent-Type: application/json\n{ \"cart_id\": 88 }" },
+      { label: "Thin Controller", lang: "php", code: "public function store(StoreOrderRequest \$req) {\n  return \$this->orderService->processCheckout(\$req->user(), \$req->validated());\n}" },
+      { label: "Domain Service", lang: "php", code: "class OrderService {\n  // Orchestrates: calculate, charge Stripe, save DB, fire Event\n}" },
+    ],
+    note: "Separating HTTP transport from business domain logic makes your application maintainable and reusable in queue workers and CLI commands.",
+  },
+  m17l2: {
+    kind: "pipeline",
+    nodes: [
+      { label: "Service Layer", lang: "php", code: "class PostService {\n  public function __construct(private PostRepositoryInterface \$repo) {}\n}" },
+      { label: "Repository Contract", lang: "php", code: "interface PostRepositoryInterface {\n  public function getPublished(): Collection;\n}" },
+      { label: "Eloquent Implementation", lang: "sql", code: "class EloquentPostRepository implements PostRepositoryInterface {\n  // SELECT * FROM posts WHERE is_published = 1\n}" },
+    ],
+    note: "The repository interface decouples your business domain from database technology, enabling instant mock testing without MySQL.",
+  },
+  m17l3: {
+    kind: "pipeline",
+    nodes: [
+      { label: "Validated DTO", lang: "php", code: "\$dto = CreateUserDTO::fromRequest(\$request);" },
+      { label: "Single-Action Class", lang: "php", code: "class CreateUserAction {\n  public function __invoke(CreateUserDTO \$data): User {\n    return DB::transaction(...);\n  }\n}" },
+      { label: "Direct Invocation", lang: "php", code: "\$user = \$createUserAction(\$dto);\n// Reusable in API, Webhooks, Seeders & CLI!" },
+    ],
+    note: "Invokable Action classes act as single-responsibility UseCases that can be invoked directly as \$action(\$dto).",
+  },
+  m17l4: {
+    kind: "pipeline",
+    nodes: [
+      { label: "HTTP Payload", lang: "json", code: "{\n  \"title\": \"Enterprise Laravel\",\n  \"is_draft\": false\n}" },
+      { label: "FormRequest", lang: "php", code: "\$validated = \$request->validated();\n// Returns loose untyped associative array" },
+      { label: "Readonly DTO", lang: "php", code: "readonly class CreatePostDTO {\n  public string \$title;\n  public bool \$isDraft;\n}\n// 100% typed, immutable, full IDE autocomplete!" },
+    ],
+    note: "Readonly DTOs convert unstructured request arrays into type-safe immutable value objects before entering your domain layer.",
+  },
+
+  m18l1: {
+    kind: "pipeline",
+    nodes: [
+      { label: "Model Action", lang: "php", code: "Post::create(['title' => 'Flutter to Laravel']);" },
+      { label: "Observer: creating()", lang: "php", code: "\$post->slug = Str::slug(\$post->title);\n// Modifies attributes before DB insert" },
+      { label: "Database Insert", lang: "sql", code: "INSERT INTO posts (title, slug) VALUES (...);" },
+      { label: "Observer: created()", lang: "php", code: "Cache::forget('latest_posts');\n// Post-persistence cleanup & notifications" },
+    ],
+    note: "Model Observers intercept lifecycle events (creating, created, deleted) cleanly without cluttering your Eloquent model file.",
+  },
+  m18l2: {
+    kind: "pipeline",
+    nodes: [
+      { label: "Core Transaction", lang: "php", code: "\$order = Order::create(\$data);\nOrderPlaced::dispatch(\$order);" },
+      { label: "Event Dispatcher", lang: "php", code: "Event::dispatch() distributes to all registered listeners" },
+      { label: "Listener 1: Mail", lang: "php", code: "SendOrderReceipt::class" },
+      { label: "Listener 2: Inventory", lang: "php", code: "UpdateInventoryStock::class" },
+    ],
+    note: "Events decouple primary operations from side-effects, keeping controller code short and single-responsibility.",
+  },
+  m18l3: {
+    kind: "pipeline",
+    nodes: [
+      { label: "Event Dispatched", lang: "php", code: "OrderPlaced::dispatch(\$order);" },
+      { label: "HTTP Response (15ms)", lang: "http", code: "201 Created -> Returns to Flutter mobile client immediately!" },
+      { label: "Redis Queue", lang: "bash", code: "Queued: SendPushNotificationListener (ShouldQueue)" },
+      { label: "Worker Process", lang: "bash", code: "php artisan queue:work\n-> Executes FCM Push in background" },
+    ],
+    note: "Queued event listeners move slow operations (emails, push notifications, webhooks) out of the HTTP thread into background workers.",
+  },
+  m18l4: {
+    kind: "pipeline",
+    nodes: [
+      { label: "Command", lang: "php", code: "\$wallet->deposit(amount: 5000);" },
+      { label: "Domain Event", lang: "php", code: "FundsDeposited { amount: 5000, timestamp: 1727769600 }" },
+      { label: "Append-Only Event Store", lang: "sql", code: "INSERT INTO stored_events (event_name, event_data) VALUES (...);" },
+      { label: "Projected Read Model", lang: "sql", code: "Current Balance = SUM(all past deposit & withdrawal events)" },
+    ],
+    note: "Event Sourcing records every state change as an immutable event, providing a tamper-proof audit trail for financial transactions.",
+  },
+
+  m19l1: {
+    kind: "pipeline",
+    nodes: [
+      { label: "Incoming Request", lang: "http", code: "GET /api/admin/metrics\nAuthorization: Bearer <token>" },
+      { label: "Authentication (401)", lang: "php", code: "Is token valid? No -> 401 Unauthorized\nYes -> \$user identified" },
+      { label: "Authorization (403)", lang: "php", code: "Does \$user have 'view-metrics' gate? No -> 403 Forbidden\nYes -> Proceed" },
+    ],
+    note: "401 means 'identify yourself' (Authentication). 403 means 'you are identified, but lack permission' (Authorization).",
+  },
+  m19l2: {
+    kind: "pipeline",
+    nodes: [
+      { label: "Mobile Client", lang: "http", code: "PUT /api/posts/42\nAuthorization: Bearer token_bob" },
+      { label: "Controller Check", lang: "php", code: "\$this->authorize('update', \$post);" },
+      { label: "PostPolicy@update", lang: "php", code: "public function update(User \$user, Post \$post) {\n  return \$user->id === \$post->user_id;\n}" },
+      { label: "Security Verdict", lang: "http", code: "Bob !== Alice (Author) -> Abort 403 Forbidden!" },
+    ],
+    note: "Policies organize resource permissions into dedicated classes, preventing unauthorized data tampering across all endpoints.",
+  },
+  m19l3: {
+    kind: "pipeline",
+    nodes: [
+      { label: "User Entity", lang: "php", code: "\$user = User::find(1);\n\$user->assignRole('editor');" },
+      { label: "Spatie Permission Map", lang: "sql", code: "Role: editor -> Permissions: ['posts.edit', 'posts.publish']" },
+      { label: "Route Middleware", lang: "php", code: "Route::post('/publish', ...)->middleware('permission:posts.publish');" },
+    ],
+    note: "Role-Based Access Control maps users to roles and roles to granular permissions, fully cached in Redis for fast checks.",
+  },
+  m19l4: {
+    kind: "pipeline",
+    nodes: [
+      { label: "Token Generation", lang: "php", code: "\$user->createToken('widget', ['posts:read']);" },
+      { label: "Request with Token", lang: "http", code: "DELETE /api/posts/42\nAuthorization: Bearer <widget_token>" },
+      { label: "Ability Inspection", lang: "php", code: "\$request->user()->tokenCan('posts:delete') === false" },
+      { label: "Enforced Boundary", lang: "http", code: "HTTP 403: 'Token lacks required ability'" },
+    ],
+    note: "Sanctum token abilities restrict what a specific API token can do, even if the parent user account holds broader admin privileges.",
+  },
+
+  m20l1: {
+    kind: "pipeline",
+    nodes: [
+      { label: "Domain Rule Violation", lang: "php", code: "if (\$cart->total > \$balance) {\n  throw new InsufficientFundsException(\$balance, \$cart->total);\n}" },
+      { label: "Exception render()", lang: "php", code: "public function render(\$request) {\n  return response()->json(['error' => 'INSUFFICIENT_FUNDS'], 422);\n}" },
+      { label: "Flutter Client", lang: "json", code: "HTTP 422: {\n  \"error\": \"INSUFFICIENT_FUNDS\",\n  \"available\": 2000,\n  \"required\": 4500\n}" },
+    ],
+    note: "Self-rendering domain exceptions transform domain rule failures into clean, structured HTTP responses without controller clutter.",
+  },
+  m20l2: {
+    kind: "pipeline",
+    nodes: [
+      { label: "Uncaught Exception", lang: "php", code: "ModelNotFoundException / Fatal Error" },
+      { label: "bootstrap/app.php", lang: "php", code: "->withExceptions(function (Exceptions \$exceptions) {\n  \$exceptions->render(fn(NotFoundHttpException \$e, \$req) => ...);\n})" },
+      { label: "Guaranteed JSON", lang: "json", code: "{\n  \"error\": \"RESOURCE_NOT_FOUND\",\n  \"message\": \"Record not found\"\n} (HTTP 404)" },
+    ],
+    note: "Centralized exception handling in bootstrap/app.php prevents raw HTML error pages from breaking mobile JSON decoders.",
+  },
+  m20l3: {
+    kind: "pipeline",
+    nodes: [
+      { label: "Application Event", lang: "php", code: "Log::withContext(['request_id' => \$reqId]);" },
+      { label: "Structured Logging", lang: "php", code: "Log::warning('Payment failed', ['cart_id' => 12, 'gateway' => 'stripe']);" },
+      { label: "Log Channels", lang: "bash", code: "storage/logs/laravel.log (JSON format)\nSlack / Discord Webhook (Critical alerts)" },
+    ],
+    note: "Structured contextual logging replaces unsearchable text logs with queryable JSON objects indexed in log aggregators.",
+  },
+  m20l4: {
+    kind: "pipeline",
+    nodes: [
+      { label: "Flutter Mobile App", lang: "dart", code: "Dio sends: 'traceparent: 00-4bf92f3577b34da6a3ce929d0e0e4736...'" },
+      { label: "Laravel API Span", lang: "php", code: "Sentry middleware continues distributed trace across HTTP & SQL queries" },
+      { label: "Exception / 500", lang: "php", code: "Sentry captures stack trace, bindings, user context & sends to dashboard" },
+    ],
+    note: "Distributed tracing connects mobile client events directly to backend database queries and exceptions in a unified timeline.",
   },
 };
 

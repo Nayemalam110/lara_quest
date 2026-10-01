@@ -26,6 +26,8 @@ import {
   Bell,
   Activity,
   Terminal,
+  Bug,
+  Workflow,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Module } from "@/data/mockData";
@@ -53,6 +55,10 @@ const MODULE_ICONS: Record<string, typeof Database> = {
   bell: Bell,
   activity: Activity,
   terminal: Terminal,
+  layers: Layers,
+  workflow: Workflow,
+  lock: Lock,
+  bug: Bug,
   // legacy aliases
   orm: Layers,
   json: FileJson,
