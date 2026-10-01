@@ -164,25 +164,47 @@ ALTER TABLE public.user_lesson_progress ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_task_attempts ENABLE ROW LEVEL SECURITY;
 
 -- Public read access for curriculum & leaderboard
+DROP POLICY IF EXISTS "Public profiles are viewable by everyone" ON public.profiles;
 CREATE POLICY "Public profiles are viewable by everyone" ON public.profiles FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Modules are viewable by everyone" ON public.modules;
 CREATE POLICY "Modules are viewable by everyone" ON public.modules FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Achievements are viewable by everyone" ON public.achievements;
 CREATE POLICY "Achievements are viewable by everyone" ON public.achievements FOR SELECT USING (true);
 
 -- User-authenticated modifications
+DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
 CREATE POLICY "Users can update own profile" ON public.profiles FOR UPDATE USING (auth.uid() = id);
+
+DROP POLICY IF EXISTS "Users can insert own profile" ON public.profiles;
 CREATE POLICY "Users can insert own profile" ON public.profiles FOR INSERT WITH CHECK (auth.uid() = id);
 
+DROP POLICY IF EXISTS "Users can view own module progress" ON public.user_module_progress;
 CREATE POLICY "Users can view own module progress" ON public.user_module_progress FOR SELECT USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can insert own module progress" ON public.user_module_progress;
 CREATE POLICY "Users can insert own module progress" ON public.user_module_progress FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can update own module progress" ON public.user_module_progress;
 CREATE POLICY "Users can update own module progress" ON public.user_module_progress FOR UPDATE USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can view own lesson progress" ON public.user_lesson_progress;
 CREATE POLICY "Users can view own lesson progress" ON public.user_lesson_progress FOR SELECT USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can insert own lesson progress" ON public.user_lesson_progress;
 CREATE POLICY "Users can insert own lesson progress" ON public.user_lesson_progress FOR INSERT WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can view own task attempts" ON public.user_task_attempts;
 CREATE POLICY "Users can view own task attempts" ON public.user_task_attempts FOR SELECT USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can insert own task attempts" ON public.user_task_attempts;
 CREATE POLICY "Users can insert own task attempts" ON public.user_task_attempts FOR INSERT WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can view own achievements" ON public.user_achievements;
 CREATE POLICY "Users can view own achievements" ON public.user_achievements FOR SELECT USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can insert own achievements" ON public.user_achievements;
 CREATE POLICY "Users can insert own achievements" ON public.user_achievements FOR INSERT WITH CHECK (auth.uid() = user_id);
 
 -- ==============================================================================
