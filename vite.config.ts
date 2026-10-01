@@ -18,5 +18,19 @@ export default defineConfig({
   server: {
     port: 3000,
     open: false,
+    allowedHosts: true,
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ["react", "react-dom", "react-router-dom"],
+          ui: ["lucide-react", "framer-motion", "clsx", "tailwind-merge"],
+          syntax: ["highlight.js", "react-syntax-highlighter"],
+          supabase: ["@supabase/supabase-js"],
+        },
+      },
+    },
+    chunkSizeWarningLimit: 900,
   },
 });

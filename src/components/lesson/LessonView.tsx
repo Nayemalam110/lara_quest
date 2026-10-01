@@ -11,10 +11,13 @@ import {
   Trophy,
   CheckCircle2,
   Sparkles,
+  Star,
+  FileText,
 } from "lucide-react";
 import type { Lesson, Module } from "@/types";
 import { lessonVisuals, nextLessonOf } from "@/data/mockData";
 import { useProgressStore } from "@/store/useProgressStore";
+import { useStudyToolsStore } from "@/store/useStudyToolsStore";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { CodeComparison } from "./CodeComparison";
@@ -35,9 +38,12 @@ export function LessonView({ lesson, module }: LessonViewProps) {
   const [activeTab, setActiveTab] = useState<LessonTab>("learn");
   const [showModal, setShowModal] = useState(false);
 
-  const { completeLesson, getStats } = useProgressStore();
+  const { completeLesson, getStats, toggleBookmark } = useProgressStore();
+  const { openNotes } = useStudyToolsStore();
   const stats = getStats();
   const isCompleted = (stats.completedLessonIds || []).map(String).includes(lesson.id);
+  const isBookmarked = (stats.bookmarkedLessonIds || []).includes(lesson.id);
+  const hasNote = Boolean((stats.lessonNotes || {})[lesson.id]);
 
   const nextLesson = nextLessonOf(lesson.id);
   const visual = lessonVisuals[lesson.id];
@@ -100,6 +106,37 @@ export function LessonView({ lesson, module }: LessonViewProps) {
                 <CheckCircle2 size={12} /> Done
               </span>
             )}
+
+            {/* Bookmark Star Toggle */}
+            <button
+              onClick={() => toggleBookmark(lesson.id)}
+              className={cn(
+                "flex items-center gap-1 rounded-lg border px-2.5 py-1 text-xs font-semibold transition cursor-pointer",
+                isBookmarked
+                  ? "border-amber-500/40 bg-amber-500/15 text-amber-300 shadow-sm"
+                  : "border-slate-800 bg-slate-900/60 text-slate-400 hover:border-slate-700 hover:text-slate-200"
+              )}
+              title={isBookmarked ? "Remove bookmark" : "Bookmark this lesson"}
+            >
+              <Star size={12} className={cn(isBookmarked && "fill-current text-amber-400")} />
+              <span className="hidden sm:inline">{isBookmarked ? "Starred" : "Star"}</span>
+            </button>
+
+            {/* Notes Button */}
+            <button
+              onClick={() => openNotes(lesson.id)}
+              className={cn(
+                "flex items-center gap-1 rounded-lg border px-2.5 py-1 text-xs font-semibold transition cursor-pointer",
+                hasNote
+                  ? "border-sky-500/40 bg-sky-500/15 text-sky-300 shadow-sm"
+                  : "border-slate-800 bg-slate-900/60 text-slate-400 hover:border-slate-700 hover:text-slate-200"
+              )}
+              title="Open personal study notes for this lesson"
+            >
+              <FileText size={12} className={cn(hasNote && "text-sky-400")} />
+              <span className="hidden sm:inline">Notes</span>
+              {hasNote && <span className="h-1.5 w-1.5 rounded-full bg-sky-400" />}
+            </button>
           </div>
         </div>
       </div>

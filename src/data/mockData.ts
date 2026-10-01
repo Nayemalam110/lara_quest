@@ -872,22 +872,32 @@ Future<void> onUpgrade(db, oldV, newV) async {
           "php artisan migrate:status displays the exact execution history of every migration file.",
         ],
         challenge: {
-          type: "fill-blank",
-          question: "Complete the migration method to revert changes during rollback.",
-          code: `return new class extends Migration {
-    public function up(): void {
-        Schema::create('tags', fn(Blueprint $t) => $t->id());
-    }
-
-    public function {{blank}}(): void {
-        Schema::dropIfExists('tags');
-    }
-};`,
-          options: ["down", "rollback", "revert", "undo"],
-          correctAnswer: "down",
+          type: "migration-builder",
+          question:
+            "Design the database migration schema for the 'orders' table. It must include an auto-incrementing id, foreignId 'user_id' with cascadeOnDelete, decimal 'total', string 'status', and timestamps.",
+          correctAnswer: "orders_migration_valid",
           explanation:
-            "The down() method in a migration contains the exact reverse logic (e.g. dropIfExists) to rollback the change.",
-          xp: 25,
+            "Schema created and migrated! In Laravel, $table->foreignId('user_id')->constrained()->cascadeOnDelete() ensures foreign key integrity and deletes child orders when a user is deleted.",
+          xp: 35,
+          migrationTarget: {
+            tableName: "orders",
+            initialColumns: [
+              { id: "col-id", name: "id", type: "id" },
+              { id: "col-user", name: "user_id", type: "foreignId", cascadeDelete: false },
+              { id: "col-ts", name: "timestamps", type: "timestamps" },
+            ],
+            targetColumns: [
+              { name: "user_id", type: "foreignId", cascadeDelete: true },
+              { name: "total", type: "decimal" },
+              { name: "status", type: "string" },
+            ],
+            hints: [
+              "Enable the 'cascade' modifier on the $table->foreignId('user_id') column.",
+              "Click 'Add Column' to create 'total' with type 'decimal'.",
+              "Click 'Add Column' to create 'status' with type 'string'.",
+              "Click 'Run Migration' when the requirements checklist is complete.",
+            ],
+          },
         },
       },
       {
@@ -1538,16 +1548,31 @@ Route::prefix('v1')->middleware('throttle:api')->group(function () {
           "Naming routes: ->name('posts.index') provides consistent route references across your backend code.",
         ],
         challenge: {
-          type: "fill-blank",
-          question: "Group the routes under the URL prefix 'v1'.",
-          code: `Route::{{blank}}('v1')->group(function () {
-    Route::get('/posts', [PostController::class, 'index']);
-});`,
-          options: ["prefix", "group", "middleware", "namespace"],
-          correctAnswer: "prefix",
+          type: "artisan-terminal",
+          question:
+            "Inspect your registered API route table or scaffold a controller. Run 'php artisan route:list' in the interactive terminal to verify HTTP verbs, URI patterns, and middleware.",
+          correctAnswer: "php artisan route:list",
           explanation:
-            "Route::prefix('v1') prepends 'v1' to all URLs declared within the closure group.",
-          xp: 25,
+            "Route table verified! The 'php artisan route:list' command is an indispensable developer tool to verify URI prefixes, names, controller action bindings, and middleware security gates before testing from your Flutter app.",
+          xp: 35,
+          artisanTarget: {
+            targetCommand: "php artisan route:list",
+            acceptableCommands: [
+              "php artisan route:list",
+              "php artisan route:list --path=api",
+              "php artisan make:controller Api/PostController --api",
+            ],
+            availableCommands: [
+              "php artisan route:list",
+              "php artisan route:list --path=api",
+              "php artisan make:controller Api/PostController --api",
+              "php artisan migrate:status",
+            ],
+            hints: [
+              "Type 'php artisan route:list' into the terminal and press Enter.",
+              "Or click the 'php artisan route:list' quick pill button below the terminal.",
+            ],
+          },
         },
       },
       {

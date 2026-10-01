@@ -16,6 +16,8 @@ import {
   Database,
   Send,
   Bug,
+  Terminal as TerminalIcon,
+  Layers,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Challenge, Lesson } from "@/types";
@@ -25,6 +27,8 @@ import { popBurst } from "@/lib/fx";
 import { SqlWriterChallenge } from "../challenges/SqlWriterChallenge";
 import { ApiSimulatorChallenge } from "../challenges/ApiSimulatorChallenge";
 import { ErrorDebuggerChallenge } from "../challenges/ErrorDebuggerChallenge";
+import { ArtisanTerminalChallenge } from "../challenges/ArtisanTerminalChallenge";
+import { MigrationBuilderChallenge } from "../challenges/MigrationBuilderChallenge";
 
 const TYPE_META = {
   mcq: { label: "Multiple Choice Quiz", icon: MousePointerClick, color: "#38bdf8" },
@@ -33,6 +37,8 @@ const TYPE_META = {
   "sql-writer": { label: "SQL Query Writer", icon: Database, color: "#34d399" },
   "api-simulator": { label: "API Request Simulator", icon: Send, color: "#818cf8" },
   "error-debugger": { label: "Production Error Debugger", icon: Bug, color: "#f43f5e" },
+  "artisan-terminal": { label: "Artisan CLI Terminal", icon: TerminalIcon, color: "#38bdf8" },
+  "migration-builder": { label: "Visual Migration Builder", icon: Layers, color: "#818cf8" },
 };
 
 export interface ChallengeRunnerProps {
@@ -109,6 +115,12 @@ export function ChallengeRunner({ lesson, onSuccess }: ChallengeRunnerProps) {
         )}
         {c.type === "error-debugger" && (
           <ErrorDebuggerChallenge lesson={lesson} solved={solved} onSuccess={onSuccess} />
+        )}
+        {c.type === "artisan-terminal" && (
+          <ArtisanTerminalChallenge lesson={lesson} solved={solved} onSuccess={onSuccess} />
+        )}
+        {c.type === "migration-builder" && (
+          <MigrationBuilderChallenge lesson={lesson} solved={solved} onSuccess={onSuccess} />
         )}
       </div>
     </div>

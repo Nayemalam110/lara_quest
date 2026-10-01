@@ -9,17 +9,25 @@ import {
   Zap,
   LogOut,
   ChevronRight,
+  Search,
+  Brain,
+  Bookmark,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { modules, moduleProgress } from "@/data/mockData";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useProgressStore } from "@/store/useProgressStore";
+import { useStudyToolsStore } from "@/store/useStudyToolsStore";
 
 export function Sidebar() {
   const navigate = useNavigate();
   const { user, profile, logout, isDemoMode } = useAuthStore();
   const { getStats } = useProgressStore();
+  const { openSearch, openFlashcards, openNotes } = useStudyToolsStore();
   const stats = getStats();
+  const masteredCardsCount = Object.values(stats.flashcardMastery || {}).filter(
+    (v) => v === "mastered"
+  ).length;
 
   const handleLogout = async () => {
     await logout();
@@ -36,7 +44,7 @@ export function Sidebar() {
   return (
     <aside className="fixed left-0 top-0 z-40 hidden h-screen w-[264px] flex-col border-r border-slate-800/80 bg-[#0e1424]/95 p-4 backdrop-blur-xl lg:flex shadow-2xl">
       {/* Brand Header */}
-      <Link to="/dashboard" className="px-1.5 pb-5 pt-1.5 flex items-center gap-3 group">
+      <Link to="/dashboard" className="px-1.5 pb-3 pt-1.5 flex items-center gap-3 group">
         <span className="relative grid h-10 w-10 place-items-center rounded-xl border border-sky-500/30 bg-gradient-to-br from-sky-500/25 via-slate-900 to-rose-500/25 shadow-md shadow-sky-500/10 transition-transform group-hover:scale-105">
           <span className="text-lg">⚡</span>
           <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.9)]" />
@@ -51,6 +59,20 @@ export function Sidebar() {
           </span>
         </div>
       </Link>
+
+      {/* Quick Search Button */}
+      <button
+        onClick={openSearch}
+        className="mb-3 flex items-center justify-between rounded-xl border border-slate-800 bg-slate-900/80 px-3 py-2 text-xs text-slate-400 shadow-sm transition hover:border-sky-500/40 hover:bg-slate-800 hover:text-slate-200"
+      >
+        <span className="flex items-center gap-2">
+          <Search size={14} className="text-sky-400" />
+          <span>Quick Search...</span>
+        </span>
+        <kbd className="rounded border border-slate-700 bg-slate-800 px-1.5 py-0.5 font-mono text-[10px] text-slate-400">
+          ⌘K
+        </kbd>
+      </button>
 
       {/* Main Navigation */}
       <nav className="flex flex-col gap-1.5">
@@ -85,6 +107,40 @@ export function Sidebar() {
           );
         })}
       </nav>
+
+      {/* Study & Retention Tools */}
+      <div className="mt-4 flex flex-col gap-1 border-t border-slate-800/80 pt-3">
+        <span className="px-2 font-mono text-[10px] uppercase tracking-[0.16em] text-slate-500 font-semibold">
+          Retention Tools
+        </span>
+        <button
+          onClick={openFlashcards}
+          className="flex items-center justify-between rounded-xl px-3 py-2 text-left text-[13px] font-medium text-slate-300 transition hover:bg-slate-800/60 hover:text-white"
+        >
+          <span className="flex items-center gap-2.5">
+            <Brain size={16} className="text-indigo-400" />
+            <span>Concept Cards</span>
+          </span>
+          <span className="rounded-full bg-indigo-500/20 px-2 py-0.5 font-mono text-[10px] font-bold text-indigo-300">
+            {masteredCardsCount}/12
+          </span>
+        </button>
+
+        <button
+          onClick={() => openNotes()}
+          className="flex items-center justify-between rounded-xl px-3 py-2 text-left text-[13px] font-medium text-slate-300 transition hover:bg-slate-800/60 hover:text-white"
+        >
+          <span className="flex items-center gap-2.5">
+            <Bookmark size={16} className="text-amber-400" />
+            <span>Study Notebook</span>
+          </span>
+          {stats.bookmarkedLessonIds.length > 0 && (
+            <span className="rounded-full bg-amber-500/20 px-2 py-0.5 font-mono text-[10px] font-bold text-amber-300">
+              {stats.bookmarkedLessonIds.length}
+            </span>
+          )}
+        </button>
+      </div>
 
       {/* Track Progress (Modules List) */}
       <div className="mt-6 px-2 font-mono text-[10.5px] uppercase tracking-[0.16em] text-slate-400 font-semibold flex items-center justify-between">

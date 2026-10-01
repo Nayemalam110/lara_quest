@@ -967,10 +967,10 @@ sequenceDiagram
 - [x] Module 16: Automated API Testing, Swagger Docs & MiniGram Capstone Project (4 lessons + full test runner)
 
 ### Phase 5: Supabase Production Persistence & Cloud Deployment
-- [ ] Connect `useProgressStore` to Supabase `user_progress` and `user_task_attempts` tables for real-time cloud sync.
-- [ ] Run seed migrations for full 16-module curriculum into Supabase PostgreSQL.
-- [ ] Optimize production bundle chunking with Vite code splitting.
-- [ ] Deploy to Vercel connected to production Supabase project with continuous deployment.
+- [x] Connect `useProgressStore` and `useAuthStore` to Supabase `profiles`, `user_module_progress`, and `user_achievements` with real-time sync.
+- [x] Master production database schema and 16-module seeds authored in `supabase/schema.sql`.
+- [x] Optimize production bundle chunking with Vite code splitting (`vendor`, `ui`, `syntax`, `supabase`).
+- [x] Vercel deployment configuration (`vercel.json`) with SPA client-side routing rewrites and asset cache headers.
 
 ---
 

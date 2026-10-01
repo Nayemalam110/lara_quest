@@ -1,11 +1,48 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Outlet } from "react-router-dom";
 import { BackgroundFX } from "./BackgroundFX";
 import { Sidebar } from "./Sidebar";
 import { MobileTopBar, MobileBottomNav } from "./MobileNav";
 import { Toast } from "../ui/Toast";
+import { CommandPalette } from "../navigation/CommandPalette";
+import { ConceptFlashcardsModal } from "../study/ConceptFlashcardsModal";
+import { LessonNotesDrawer } from "../study/LessonNotesDrawer";
+import { useStudyToolsStore } from "@/store/useStudyToolsStore";
 
 export function Layout() {
+  const {
+    isSearchOpen,
+    closeSearch,
+    openSearch,
+    isFlashcardsOpen,
+    closeFlashcards,
+    openFlashcards,
+    isNotesOpen,
+    closeNotes,
+    activeLessonIdForNotes,
+  } = useStudyToolsStore();
+
+  // Global keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Cmd + K or Ctrl + K: Search
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        if (isSearchOpen) closeSearch();
+        else openSearch();
+      }
+      // Cmd + J or Ctrl + J: Flashcards
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "j") {
+        e.preventDefault();
+        if (isFlashcardsOpen) closeFlashcards();
+        else openFlashcards();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isSearchOpen, isFlashcardsOpen, openSearch, closeSearch, openFlashcards, closeFlashcards]);
+
   return (
     <div className="relative min-h-screen font-display text-slate-100">
       {/* Dynamic atmospheric canvas */}
@@ -26,6 +63,15 @@ export function Layout() {
 
       {/* Mobile bottom navigation tabs */}
       <MobileBottomNav />
+
+      {/* Study Modals & Tools */}
+      <CommandPalette isOpen={isSearchOpen} onClose={closeSearch} />
+      <ConceptFlashcardsModal isOpen={isFlashcardsOpen} onClose={closeFlashcards} />
+      <LessonNotesDrawer
+        isOpen={isNotesOpen}
+        onClose={closeNotes}
+        activeLessonId={activeLessonIdForNotes}
+      />
 
       {/* Floating level up & XP toasts */}
       <Toast />

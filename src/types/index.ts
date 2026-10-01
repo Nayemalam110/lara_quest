@@ -8,7 +8,9 @@ export type ChallengeType =
   | 'fill-blank'
   | 'sql-writer'
   | 'api-simulator'
-  | 'error-debugger';
+  | 'error-debugger'
+  | 'artisan-terminal'
+  | 'migration-builder';
 
 export interface SqlMockResult {
   columns: string[];
@@ -43,6 +45,55 @@ export interface DebuggerFixOption {
   explanation: string;
 }
 
+export interface ArtisanTerminalTarget {
+  targetCommand: string;
+  acceptableCommands?: string[];
+  availableCommands?: string[]; // for quick chip suggestions
+  initialCommand?: string;
+  customOutputs?: Record<string, string | string[]>;
+  expectedResultSnippet?: string;
+  hints?: string[];
+}
+
+export interface MigrationColumnDef {
+  id: string;
+  name: string;
+  type:
+    | 'id'
+    | 'string'
+    | 'text'
+    | 'integer'
+    | 'bigInteger'
+    | 'boolean'
+    | 'timestamp'
+    | 'timestamps'
+    | 'foreignId'
+    | 'decimal'
+    | 'enum'
+    | 'json';
+  nullable?: boolean;
+  unique?: boolean;
+  default?: string;
+  foreignTable?: string;
+  cascadeDelete?: boolean;
+  enumValues?: string[];
+}
+
+export interface MigrationBuilderTarget {
+  tableName: string;
+  initialColumns?: MigrationColumnDef[];
+  targetColumns: {
+    name: string;
+    type: string;
+    nullable?: boolean;
+    unique?: boolean;
+    cascadeDelete?: boolean;
+    foreignTable?: string;
+  }[];
+  instructionPrompt?: string;
+  hints?: string[];
+}
+
 export interface Challenge {
   type: ChallengeType;
   question: string;
@@ -71,6 +122,12 @@ export interface Challenge {
   errorLine?: number;
   buggyCode?: string;
   fixOptions?: DebuggerFixOption[];
+
+  // For artisan-terminal
+  artisanTarget?: ArtisanTerminalTarget;
+
+  // For migration-builder
+  migrationTarget?: MigrationBuilderTarget;
 }
 
 export interface FlutterParallel {
@@ -198,3 +255,22 @@ export type ActiveView =
   | { name: 'playground' }
   | { name: 'profile' }
   | { name: 'roadmap' };
+
+export interface Flashcard {
+  id: string;
+  category: string;
+  flutterConcept: string;
+  laravelConcept: string;
+  flutterSnippet: string;
+  laravelSnippet: string;
+  explanation: string;
+  moduleId?: string;
+  lessonId?: string;
+}
+
+export interface LessonNote {
+  lessonId: string;
+  note: string;
+  updatedAt: string;
+}
+

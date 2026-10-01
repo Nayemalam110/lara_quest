@@ -1,10 +1,12 @@
 -- ==============================================================================
--- 🚀 LaraQuest Supabase Database Schema (Phase 1)
--- Run this in your Supabase SQL Editor to set up the backend database.
+-- 🚀 LaraQuest Supabase Production Database Schema & Seeds (Phase 5)
+-- Run this script in the Supabase SQL Editor to configure all tables, RLS policies,
+-- streak tracking RPC functions, and the 16-module curriculum seed data.
 -- ==============================================================================
 
 -- 1. EXTENSIONS
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- 2. PROFILES TABLE (Extends Supabase Auth users)
 CREATE TABLE IF NOT EXISTS public.profiles (
@@ -18,20 +20,52 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     longest_streak INTEGER DEFAULT 0,
     last_activity_date DATE,
     streak_freezes INTEGER DEFAULT 1,
+    completed_lesson_ids TEXT[] DEFAULT '{}',
+    unlocked_module_ids TEXT[] DEFAULT '{"m1"}',
+    earned_achievement_keys TEXT[] DEFAULT '{"first_steps"}',
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Trigger to auto-create profile on signup
+-- If profiles already exists from Phase 1, ensure columns exist
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='profiles' AND column_name='completed_lesson_ids') THEN
+        ALTER TABLE public.profiles ADD COLUMN completed_lesson_ids TEXT[] DEFAULT '{}';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='profiles' AND column_name='unlocked_module_ids') THEN
+        ALTER TABLE public.profiles ADD COLUMN unlocked_module_ids TEXT[] DEFAULT '{"m1"}';
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='profiles' AND column_name='earned_achievement_keys') THEN
+        ALTER TABLE public.profiles ADD COLUMN earned_achievement_keys TEXT[] DEFAULT '{"first_steps"}';
+    END IF;
+END $$;
+
+-- 3. AUTO PROFILE TRIGGER ON AUTH SIGNUP
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-    INSERT INTO public.profiles (id, display_name, avatar_url)
+    INSERT INTO public.profiles (
+        id,
+        display_name,
+        avatar_url,
+        total_xp,
+        current_level,
+        completed_lesson_ids,
+        unlocked_module_ids,
+        earned_achievement_keys
+    )
     VALUES (
         NEW.id,
         COALESCE(NEW.raw_user_meta_data->>'display_name', split_part(NEW.email, '@', 1)),
-        COALESCE(NEW.raw_user_meta_data->>'avatar_url', 'https://api.dicebear.com/7.x/bottts/svg?seed=' || NEW.id)
-    );
+        COALESCE(NEW.raw_user_meta_data->>'avatar_url', 'https://api.dicebear.com/7.x/bottts/svg?seed=' || NEW.id || '&backgroundColor=6366f1'),
+        50,
+        1,
+        '{}',
+        '{"m1"}',
+        '{"first_steps"}'
+    )
+    ON CONFLICT (id) DO NOTHING;
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -41,55 +75,80 @@ CREATE TRIGGER on_auth_user_created
     AFTER INSERT ON auth.users
     FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
--- 3. MODULES TABLE
+-- 4. MODULES TABLE
 CREATE TABLE IF NOT EXISTS public.modules (
-    id SERIAL PRIMARY KEY,
+    id TEXT PRIMARY KEY,
     title TEXT NOT NULL,
     subtitle TEXT,
     description TEXT,
-    icon_emoji TEXT DEFAULT '📘',
-    color_accent TEXT DEFAULT '#6366f1',
+    icon_name TEXT DEFAULT 'book-open',
+    color_accent TEXT DEFAULT '#38bdf8',
     order_index INTEGER NOT NULL UNIQUE,
+    track TEXT NOT NULL,
     total_lessons INTEGER DEFAULT 4,
     estimated_time TEXT DEFAULT '20 mins',
     flutter_connection TEXT,
-    unlock_after_module_id INTEGER REFERENCES public.modules(id),
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 4. ACHIEVEMENTS TABLE
+-- 5. ACHIEVEMENTS TABLE
 CREATE TABLE IF NOT EXISTS public.achievements (
     id SERIAL PRIMARY KEY,
     key TEXT UNIQUE NOT NULL,
     name TEXT NOT NULL,
     description TEXT,
     icon_emoji TEXT DEFAULT '🏆',
-    rarity TEXT DEFAULT 'common', -- 'common', 'rare', 'epic', 'legendary'
-    condition_type TEXT NOT NULL,  -- 'streak', 'xp', 'lessons', 'modules', 'special'
+    rarity TEXT DEFAULT 'common',
+    condition_type TEXT NOT NULL,
     condition_value INTEGER DEFAULT 0,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 5. USER ACHIEVEMENTS TABLE
+-- 6. USER ACHIEVEMENTS TABLE
 CREATE TABLE IF NOT EXISTS public.user_achievements (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
     achievement_id INTEGER REFERENCES public.achievements(id) ON DELETE CASCADE,
     earned_at TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE(user_id, achievement_id)
 );
 
--- 6. USER MODULE PROGRESS
+-- 7. USER MODULE PROGRESS
 CREATE TABLE IF NOT EXISTS public.user_module_progress (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
-    module_id INTEGER REFERENCES public.modules(id) ON DELETE CASCADE,
+    module_id TEXT NOT NULL,
     lessons_completed INTEGER DEFAULT 0,
     is_unlocked BOOLEAN DEFAULT FALSE,
     is_completed BOOLEAN DEFAULT FALSE,
     started_at TIMESTAMPTZ DEFAULT NOW(),
     completed_at TIMESTAMPTZ,
     UNIQUE(user_id, module_id)
+);
+
+-- 8. USER LESSON PROGRESS
+CREATE TABLE IF NOT EXISTS public.user_lesson_progress (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+    lesson_id TEXT NOT NULL,
+    module_id TEXT NOT NULL,
+    status TEXT DEFAULT 'completed',
+    xp_earned INTEGER DEFAULT 25,
+    completed_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(user_id, lesson_id)
+);
+
+-- 9. USER TASK ATTEMPTS
+CREATE TABLE IF NOT EXISTS public.user_task_attempts (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
+    lesson_id TEXT NOT NULL,
+    task_type TEXT NOT NULL,
+    attempt_number INTEGER DEFAULT 1,
+    user_answer TEXT,
+    is_correct BOOLEAN NOT NULL,
+    xp_awarded INTEGER DEFAULT 0,
+    attempted_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- ==============================================================================
@@ -101,68 +160,152 @@ ALTER TABLE public.modules ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.achievements ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_achievements ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_module_progress ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_lesson_progress ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_task_attempts ENABLE ROW LEVEL SECURITY;
 
--- Profiles: Anyone can view (for leaderboard), user can update their own
-CREATE POLICY "Public profiles are viewable by everyone"
-    ON public.profiles FOR SELECT USING (true);
+-- Public read access for curriculum & leaderboard
+CREATE POLICY "Public profiles are viewable by everyone" ON public.profiles FOR SELECT USING (true);
+CREATE POLICY "Modules are viewable by everyone" ON public.modules FOR SELECT USING (true);
+CREATE POLICY "Achievements are viewable by everyone" ON public.achievements FOR SELECT USING (true);
 
-CREATE POLICY "Users can update own profile"
-    ON public.profiles FOR UPDATE USING (auth.uid() = id);
+-- User-authenticated modifications
+CREATE POLICY "Users can update own profile" ON public.profiles FOR UPDATE USING (auth.uid() = id);
+CREATE POLICY "Users can insert own profile" ON public.profiles FOR INSERT WITH CHECK (auth.uid() = id);
 
--- Modules & Achievements: Public read
-CREATE POLICY "Modules are viewable by everyone"
-    ON public.modules FOR SELECT USING (true);
+CREATE POLICY "Users can view own module progress" ON public.user_module_progress FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert own module progress" ON public.user_module_progress FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can update own module progress" ON public.user_module_progress FOR UPDATE USING (auth.uid() = user_id);
 
-CREATE POLICY "Achievements are viewable by everyone"
-    ON public.achievements FOR SELECT USING (true);
+CREATE POLICY "Users can view own lesson progress" ON public.user_lesson_progress FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert own lesson progress" ON public.user_lesson_progress FOR INSERT WITH CHECK (auth.uid() = user_id);
 
--- User Achievements: Users see only their own
-CREATE POLICY "Users can view own achievements"
-    ON public.user_achievements FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can view own task attempts" ON public.user_task_attempts FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert own task attempts" ON public.user_task_attempts FOR INSERT WITH CHECK (auth.uid() = user_id);
 
-CREATE POLICY "Users can insert own achievements"
-    ON public.user_achievements FOR INSERT WITH CHECK (auth.uid() = user_id);
-
--- User Module Progress: Users manage their own progress
-CREATE POLICY "Users can view own module progress"
-    ON public.user_module_progress FOR SELECT USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can insert own module progress"
-    ON public.user_module_progress FOR INSERT WITH CHECK (auth.uid() = user_id);
-
-CREATE POLICY "Users can update own module progress"
-    ON public.user_module_progress FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "Users can view own achievements" ON public.user_achievements FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert own achievements" ON public.user_achievements FOR INSERT WITH CHECK (auth.uid() = user_id);
 
 -- ==============================================================================
--- 🌱 SEED DATA
+-- ⚡ STREAK & ACTIVITY RPC ENGINE
 -- ==============================================================================
 
-INSERT INTO public.modules (order_index, title, subtitle, description, icon_emoji, color_accent, total_lessons, estimated_time, flutter_connection)
+CREATE OR REPLACE FUNCTION public.record_activity(p_user_id UUID)
+RETURNS JSONB AS $$
+DECLARE
+    v_profile RECORD;
+    v_today DATE := CURRENT_DATE;
+    v_yesterday DATE := CURRENT_DATE - 1;
+    v_freeze_used BOOLEAN := FALSE;
+    v_streak_broken BOOLEAN := FALSE;
+BEGIN
+    SELECT * INTO v_profile FROM public.profiles WHERE id = p_user_id;
+
+    IF NOT FOUND THEN
+        RETURN jsonb_build_object('error', 'Profile not found');
+    END IF;
+
+    -- Already recorded activity today
+    IF v_profile.last_activity_date = v_today THEN
+        RETURN jsonb_build_object(
+            'streak', v_profile.current_streak,
+            'longest_streak', v_profile.longest_streak,
+            'action', 'already_active'
+        );
+    END IF;
+
+    IF v_profile.last_activity_date = v_yesterday THEN
+        -- Consecutive streak continuation
+        UPDATE public.profiles SET
+            current_streak = current_streak + 1,
+            longest_streak = GREATEST(longest_streak, current_streak + 1),
+            last_activity_date = v_today,
+            updated_at = NOW()
+        WHERE id = p_user_id;
+
+    ELSIF v_profile.last_activity_date < v_yesterday THEN
+        -- Missed a day: test for freeze
+        IF v_profile.streak_freezes > 0 THEN
+            UPDATE public.profiles SET
+                streak_freezes = streak_freezes - 1,
+                current_streak = current_streak + 1,
+                longest_streak = GREATEST(longest_streak, current_streak + 1),
+                last_activity_date = v_today,
+                updated_at = NOW()
+            WHERE id = p_user_id;
+            v_freeze_used := TRUE;
+        ELSE
+            -- Reset streak
+            UPDATE public.profiles SET
+                current_streak = 1,
+                last_activity_date = v_today,
+                updated_at = NOW()
+            WHERE id = p_user_id;
+            v_streak_broken := TRUE;
+        END IF;
+
+    ELSE
+        -- First recorded activity
+        UPDATE public.profiles SET
+            current_streak = 1,
+            longest_streak = GREATEST(longest_streak, 1),
+            last_activity_date = v_today,
+            updated_at = NOW()
+        WHERE id = p_user_id;
+    END IF;
+
+    SELECT * INTO v_profile FROM public.profiles WHERE id = p_user_id;
+
+    RETURN jsonb_build_object(
+        'streak', v_profile.current_streak,
+        'longest_streak', v_profile.longest_streak,
+        'freeze_used', v_freeze_used,
+        'streak_broken', v_streak_broken,
+        'freezes_remaining', v_profile.streak_freezes
+    );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- ==============================================================================
+-- 🌱 SEED DATA: 16 MASTER CURRICULUM MODULES
+-- ==============================================================================
+
+INSERT INTO public.modules (id, order_index, track, title, subtitle, description, icon_name, color_accent, total_lessons, estimated_time, flutter_connection)
 VALUES
-(0, 'The Big Picture', 'Connecting Flutter to the Server', 'What happens after Dio.get() sends a packet into the internet? Unravel the server request-response lifecycle and understand MVC from a Flutter state perspective.', '🗺️', '#3b82f6', 4, '15 mins', 'Think of the server as the unseen mirror of your Dio/Http client and Riverpod state.'),
-(1, 'PHP Crash Course for Dart Devs', 'Dart syntax meets modern PHP 8+', 'You already know types, classes, async, and methods in Dart. Learn PHP without starting from zero by comparing side-by-side.', '🐘', '#8b5cf6', 4, '20 mins', 'Dart `List<Map>` becomes PHP arrays; Dart classes become PHP classes with type hinting.'),
-(2, 'Laravel Setup & Artisan', 'Like `flutter create` for APIs', 'Initialize projects, navigate the directory anatomy, and master the Artisan CLI companion that replaces your repetitive boilerplate.', '🏗️', '#ef4444', 4, '20 mins', '`php artisan make:controller` is like your Flutter code generator (`build_runner`), but instant.'),
-(3, 'Routing & Endpoints', 'Where URLs Meet Executable Code', 'Define RESTful HTTP verbs (GET, POST, PUT, DELETE) and map URL query params and path params directly to actions.', '🛣️', '#f59e0b', 5, '25 mins', 'The route definitions in Laravel match the URL strings you put inside `Dio.request("/api/v1/...")`.'),
-(4, 'Controllers & Responses', 'The Brain of Your API', 'Handle incoming payloads, manipulate data, and serialize crisp JSON responses that your Flutter `fromJson()` can consume without errors.', '🎮', '#10b981', 5, '25 mins', 'Controllers are like your Bloc/Notifier event handlers, triggered by incoming HTTP events.'),
-(5, 'Database & Migrations', 'The Scary Part Made Intuitive', 'Visual relational tables, foreign keys, and version-controlled schemas. Never be intimidated by SQL again.', '🗄️', '#ec4899', 6, '35 mins', 'No more wondering where the JSON data lives — design tables just like you design Flutter state models.'),
-(6, 'Eloquent ORM', 'Database Queries Made Beautiful', 'Say goodbye to raw SQL strings. Query relational models with fluent, chainable methods that read like English.', '✨', '#06b6d4', 6, '30 mins', '`User::with("orders")->find(1)` gives you the exact nested object your UI expects.'),
-(7, 'Requests & Validation', 'The Bulletproof Gatekeeper', 'Validate payloads before they touch your database. Automatically generate helpful HTTP 422 JSON errors that Flutter forms can display.', '📬', '#84cc16', 5, '25 mins', 'Your Flutter form validation protects the user; server validation protects your system.'),
-(8, 'Authentication & Sanctum', 'Tokens, Bearers & Middleware', 'Understand how Bearer tokens are issued, encrypted, verified, and protected across secure routes.', '🔐', '#6366f1', 5, '30 mins', 'The Bearer token you save in `flutter_secure_storage` is born and validated here.'),
-(9, 'Building RESTful APIs', 'The Grand Full-Stack Connection', 'API Resources, pagination headers, file uploads with multipart forms, and rate limiting.', '🌐', '#14b8a6', 6, '35 mins', 'Build the complete backend for a realistic mobile app from scratch.'),
-(10, 'Testing Your API', 'Confidence Before Deployment', 'Write feature tests with Laravel PEST/PHPUnit to verify that your endpoints always return the expected JSON schema.', '🧪', '#a855f7', 4, '20 mins', 'Like Flutter unit and integration tests, but testing HTTP status codes and JSON payloads.'),
-(11, 'Final Capstone Project', 'From Dart to PHP Champion', 'Design, build, and document a production-ready API for a real Flutter application.', '🚀', '#f43f5e', 7, '45 mins', 'Your capstone badge proves you are no longer just a client dev — you are a full-stack engineer.')
-ON CONFLICT (order_index) DO NOTHING;
+('m1', 1, 'Track 1: Foundations', 'Relational DB Design & Schema Architecture', 'Understanding tables, keys, and foreign constraints', 'Database design from the perspective of Dart state models.', 'database', '#38bdf8', 3, '18 mins', 'Relational tables mirror your Dart data classes and SQLite storage.'),
+('m2', 2, 'Track 1: Foundations', 'Modern PHP 8 for Dart Developers', 'PHP syntax mapped to Dart equivalents', 'Strict typing, match expressions, null-safe operators, and arrow functions.', 'code-2', '#818cf8', 4, '22 mins', 'Translates Dart syntax (types, collections, classes) directly to PHP 8.2+.'),
+('m3', 3, 'Track 1: Foundations', 'Server Lifecycle & Request Pipeline', 'From client socket to response envelope', 'Trace HTTP requests through Nginx, PHP-FPM, Kernel, and middleware.', 'server', '#38bdf8', 4, '25 mins', 'What happens on the server when Dio.get() sends a packet.'),
+('m4', 4, 'Track 1: Foundations', 'Database Migrations & Seeders', 'Version-controlled database schema evolution', 'Writing migrations, running seeders, and factories.', 'git-merge', '#38bdf8', 4, '24 mins', 'Replaces error-prone manual SQLite onCreate scripts with declarative migrations.'),
+('m5', 5, 'Track 2: Eloquent Engine', 'Eloquent ORM — Models That Query Themselves', 'ActiveRecord pattern vs DAO', 'Model definitions, query scopes, accessors, and mutators.', 'cpu', '#818cf8', 4, '24 mins', 'Like Riverpod async state providers with built-in database query builders.'),
+('m6', 6, 'Track 2: Eloquent Engine', 'Relationships, Pivots & The N+1 Bug', 'One-to-Many, Many-to-Many & eager loading', 'BelongsTo, HasMany, BelongsToMany, and query optimization.', 'layers', '#818cf8', 4, '28 mins', 'Eliminate N+1 database waterfalls before they slow down your mobile API.'),
+('m7', 7, 'Track 2: Eloquent Engine', 'Controllers, Routing & Route Model Binding', 'Handling HTTP actions and dependency injection', 'Controller structure, automatic model resolution, and route namespaces.', 'controller', '#818cf8', 4, '24 mins', 'Controllers are the server-side counterparts to your BLoC / ViewModel event handlers.'),
+('m8', 8, 'Track 3: REST API Mastery', 'RESTful Architecture & Resource Routes', 'Standardized CRUD HTTP semantics', 'Resource controllers, URL naming conventions, and proper HTTP status codes.', 'globe', '#38bdf8', 4, '25 mins', 'Aligns API URL structures with client Dio REST service methods.'),
+('m9', 9, 'Track 3: REST API Mastery', 'API Validation & 422 Envelopes', 'Form Requests and standard error handling', 'Server-side validation rules, custom FormRequests, and mobile error responses.', 'shield-alert', '#38bdf8', 4, '25 mins', 'Server validation protects data integrity and returns parseable 422 errors for Flutter forms.'),
+('m10', 10, 'Track 3: REST API Mastery', 'Eloquent API Resources & JSON Transforms', 'Decoupling database schema from mobile JSON contracts', 'JsonResource, ResourceCollection, conditional attributes, and relationships.', 'package', '#38bdf8', 4, '25 mins', 'Guarantees your Flutter fromJson() models never break when database column names change.'),
+('m11', 11, 'Track 3: REST API Mastery', 'Mobile API Authentication with Sanctum', 'Bearer tokens, token abilities, and revocation', 'Issue personal access tokens, guard routes, and manage multi-device sessions.', 'key', '#38bdf8', 5, '30 mins', 'The Bearer token lifecycle: stored in flutter_secure_storage, verified via Sanctum.'),
+('m12', 12, 'Track 3: REST API Mastery', 'Pagination, Filtering, Sorting & Search', 'Efficient collection queries for infinite lists', 'Offset vs Cursor pagination, dynamic query filtering, and full-text search.', 'search', '#38bdf8', 4, '26 mins', 'Cursor pagination designed for Flutter ListView.builder infinite scrolling.'),
+('m13', 13, 'Track 4: Advanced & DevOps', 'Multipart File & Media Uploads', 'Handling binary streams and cloud storage', 'Multipart/form-data parsing, file validation, storage disks, and signed URLs.', 'upload-cloud', '#f43f5e', 4, '26 mins', 'Handling mobile camera / gallery image uploads via Dio FormData.'),
+('m14', 14, 'Track 4: Advanced & DevOps', 'Background Queues & Push Notifications', 'Asynchronous job dispatching and FCM', 'Database queues, Redis, worker listeners, and FCM push notifications.', 'bell', '#f43f5e', 4, '28 mins', 'Dispatch long-running jobs to queues so mobile HTTP responses return in <100ms.'),
+('m15', 15, 'Track 4: Advanced & DevOps', 'API Rate Limiting, Redis Caching & CORS', 'Scaling throughput and securing origins', 'Throttle middleware, Redis key-value caching, and CORS configuration.', 'zap', '#f43f5e', 4, '26 mins', 'Prevent server overloads and cache frequent mobile feed responses with Redis.'),
+('m16', 16, 'Track 4: Advanced & DevOps', 'Automated Testing, Swagger & Capstone', 'PEST feature testing, OpenAPI docs, and MiniGram backend', 'Feature tests, Swagger generation, and full production Capstone API deployment.', 'terminal', '#f43f5e', 4, '35 mins', 'Complete full-stack capstone backend with automated test suite and OpenAPI specification.')
+ON CONFLICT (id) DO UPDATE SET
+    title = EXCLUDED.title,
+    subtitle = EXCLUDED.subtitle,
+    description = EXCLUDED.description,
+    track = EXCLUDED.track,
+    total_lessons = EXCLUDED.total_lessons,
+    estimated_time = EXCLUDED.estimated_time,
+    flutter_connection = EXCLUDED.flutter_connection;
 
--- Seed Achievements
+-- 10. SEED ACHIEVEMENTS
 INSERT INTO public.achievements (key, name, description, icon_emoji, rarity, condition_type, condition_value)
 VALUES
 ('first_steps', 'First Steps', 'Complete your very first Laravel lesson', '🐣', 'common', 'lessons', 1),
 ('on_fire', 'On Fire', 'Maintain a 7-day learning streak without missing a day', '🔥', 'rare', 'streak', 7),
 ('quick_learner', 'Quick Learner', 'Complete 3 lessons in a single session', '🧠', 'common', 'lessons', 3),
 ('perfect_score', 'Flawless Victory', 'Score 100% on any interactive challenge on first attempt', '💯', 'rare', 'special', 1),
-('db_architect', 'Database Architect', 'Master database design and run your first migration', '🗄️', 'epic', 'modules', 5),
-('api_builder', 'REST Champion', 'Successfully construct your first CRUD API route collection', '🔗', 'epic', 'modules', 9),
-('night_owl', 'Night Owl', 'Level up after midnight', '🌙', 'common', 'special', 1),
-('speed_demon', 'Speed Demon', 'Solve an interactive task in under 45 seconds', '⚡', 'rare', 'special', 1),
-('full_stack_falcon', 'Full-Stack Falcon', 'Complete all 12 modules and earn your backend wings', '🦅', 'legendary', 'modules', 12)
+('db_architect', 'Database Architect', 'Master database design and run your first migration', '🗄️', 'epic', 'modules', 4),
+('query_ninja', 'Query Ninja', 'Diagnose and optimize N+1 queries with eager loading', '⚡', 'rare', 'special', 1),
+('api_builder', 'REST Champion', 'Successfully construct your first CRUD API route collection', '🔗', 'epic', 'modules', 8),
+('token_master', 'Auth Sentinel', 'Implement Sanctum bearer token authentication', '🔐', 'epic', 'modules', 11),
+('full_stack_falcon', 'Full-Stack Falcon', 'Complete all 16 modules and earn your backend wings', '🦅', 'legendary', 'modules', 16)
 ON CONFLICT (key) DO NOTHING;

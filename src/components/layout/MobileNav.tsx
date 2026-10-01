@@ -1,13 +1,15 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Flame, Zap, Boxes, GraduationCap, Trophy, Map } from "lucide-react";
+import { Flame, Zap, Boxes, GraduationCap, Trophy, Map, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useProgressStore } from "@/store/useProgressStore";
+import { useStudyToolsStore } from "@/store/useStudyToolsStore";
 
 export function MobileTopBar() {
   const { profile } = useAuthStore();
   const { getStats } = useProgressStore();
+  const { openSearch } = useStudyToolsStore();
   const stats = getStats();
 
   return (
@@ -34,8 +36,17 @@ export function MobileTopBar() {
           <Zap size={11} className="fill-current" /> {stats.xp}
         </span>
 
+        {/* Quick Search */}
+        <button
+          onClick={openSearch}
+          className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-slate-200 transition"
+          title="Search lessons"
+        >
+          <Search size={15} />
+        </button>
+
         {/* Profile Avatar */}
-        <Link to="/profile" className="ml-1">
+        <Link to="/profile" className="ml-0.5">
           <img
             src={profile?.avatarUrl || `https://api.dicebear.com/7.x/bottts/svg?seed=LaraQuest`}
             alt="Profile"
