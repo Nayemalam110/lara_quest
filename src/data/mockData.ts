@@ -54,6 +54,8 @@ export type ModuleIcon =
   | "workflow"
   | "lock"
   | "bug"
+  | "zap"
+  | "hard-drive"
   | "orm"
   | "json"
   | "shield";
@@ -114,6 +116,13 @@ export const TRACKS: Track[] = [
     title: "Real-World Architecture & Patterns",
     tagline: "Service layer, repositories, single-responsibility actions, DTOs, events, listeners, policies, and global error handling",
     color: "#fbbf24",
+  },
+  {
+    id: "track-6",
+    number: 6,
+    title: "Database Mastery & Performance",
+    tagline: "Polymorphic relations, EXPLAIN ANALYZE, composite indexes, multi-tenancy RLS, and zero-downtime migrations",
+    color: "#06b6d4",
   },
 ];
 
@@ -4789,6 +4798,890 @@ await SentryFlutter.init(
       },
     ],
   },
+
+  // ==============================================================================
+  // TRACK 6: DATABASE MASTERY & PERFORMANCE
+  // ==============================================================================
+
+  {
+    id: "m21",
+    index: 21,
+    trackId: "track-6",
+    trackName: "Track 6: Database Mastery & Performance",
+    title: "Advanced Eloquent Techniques",
+    tagline: "Polymorphism, soft deletes, and zero-memory data streaming",
+    description:
+      "Master polymorphic relations, model pruning, chunking, lazy collections, and custom enum attribute casts for high-throughput backends.",
+    color: "#06b6d4",
+    icon: "layers",
+    lessons: [
+      {
+        id: "m21l1",
+        moduleId: "m21",
+        title: "Polymorphic Relationships (morphTo & morphMany)",
+        readTime: "8 min",
+        xp: 50,
+        summary:
+          "Attach comments, likes, or attachments to multiple models (Posts, Videos, Products) using a single polymorphic table.",
+        flutterParallel: {
+          concept: "Dart Polymorphic Interface vs Eloquent morphTo / morphMany",
+          flutterFile: "lib/features/comments/domain/entities/commentable.dart",
+          laravelFile: "app/Models/Comment.php",
+          flutterCode: `// Dart polymorphic interface:
+abstract class Commentable {
+  int get id;
+  String get title;
+}
+
+class Post implements Commentable { ... }
+class Video implements Commentable { ... }
+
+// Comment model referencing parent entity:
+class Comment {
+  final int id;
+  final String body;
+  final Commentable parent;
+  Comment({required this.id, required this.body, required this.parent});
+}`,
+          laravelCode: `// Eloquent Polymorphic Model:
+class Comment extends Model {
+  // Returns either Post, Video, or Product instance!
+  public function commentable(): MorphTo {
+    return \$this->morphTo();
+  }
+}
+
+class Post extends Model {
+  public function comments(): MorphMany {
+    return \$this->morphMany(Comment::class, 'commentable');
+  }
+}`,
+          explanation:
+            "Instead of creating separate post_comments, video_comments, and product_comments tables in your database, Laravel polymorphic relations store commentable_id (the target row PK) and commentable_type (e.g. 'App\\\\Models\\\\Post') on a single comments table.",
+        },
+        content: [
+          "Polymorphic relations allow a model to belong to more than one other model on a single association.",
+          "The child table requires two columns: `{name}_id` (integer/UUID) and `{name}_type` (string class name or morph alias).",
+          "You can define morph maps in `AppServiceProvider`: `Relation::morphMap(['post' => Post::class, 'video' => Video::class]);` to avoid storing full PHP class strings in MySQL.",
+          "Querying polymorphic children works identically to standard relations: `$post->comments()->create(['body' => 'Great tutorial!']);`.",
+        ],
+        challenge: {
+          type: "fill-blank",
+          question:
+            "Which Eloquent relationship method defines a one-to-many polymorphic relationship on the parent model?",
+          code: `public function comments(): MorphMany {\n  return \$this->{{blank}}(Comment::class, 'commentable');\n}`,
+          options: ["morphMany", "morphTo", "hasManyThrough", "morphToMany"],
+          correctAnswer: "morphMany",
+          explanation:
+            "$this->morphMany(Comment::class, 'commentable') establishes that the parent model owns many polymorphic Comment children.",
+          xp: 30,
+        },
+      },
+      {
+        id: "m21l2",
+        moduleId: "m21",
+        title: "Soft Deletes & Automated Model Pruning",
+        readTime: "7 min",
+        xp: 45,
+        summary:
+          "Implement 'Undo Delete' in mobile apps with SoftDeletes and automatically purge stale records with the Prunable trait.",
+        flutterParallel: {
+          concept: "Trash Bin / Undo Delete UI vs Server-Side SoftDeletes",
+          flutterFile: "lib/features/posts/presentation/widgets/trash_list.dart",
+          laravelFile: "app/Models/Post.php",
+          flutterCode: `// Flutter displaying trash bin items:
+final trashedPosts = await api.getTrashedPosts();
+// Tapping "Restore" sends PUT /api/posts/42/restore
+IconButton(
+  icon: const Icon(Icons.restore_from_trash),
+  onPressed: () => restorePost(post.id),
+);`,
+          laravelCode: `use Illuminate\\Database\\Eloquent\\SoftDeletes;
+use Illuminate\\Database\\Eloquent\\Prunable;
+
+class Post extends Model {
+  use SoftDeletes, Prunable;
+
+  // Automatically hard-delete trashed posts older than 30 days:
+  public function prunable() {
+    return static::where('deleted_at', '<=', now()->subDays(30));
+  }
+}
+
+// In Controller:
+Post::onlyTrashed()->find(\$id)->restore();`,
+          explanation:
+            "Calling $post->delete() on a soft-deleting model sets the deleted_at timestamp instead of running SQL DELETE. Eloquent automatically excludes deleted records from normal queries, while allowing you to query trashed items with Post::withTrashed() or Post::onlyTrashed().",
+        },
+        content: [
+          "Soft deleting protects user data from accidental irreversible deletion and enables full 'Trash / Undo' mobile user experiences.",
+          "The database migration must include `$table->softDeletes();` which creates a nullable `deleted_at` timestamp column.",
+          "Normal queries like `Post::all()` automatically append `WHERE deleted_at IS NULL` under the hood.",
+          "The `Prunable` trait pairs with Laravel's scheduler (`php artisan model:prune`) to permanently delete records after a retention period.",
+        ],
+        challenge: {
+          type: "mcq",
+          question:
+            "Which Eloquent query builder method allows you to query ONLY records that have been soft-deleted (ignoring active records)?",
+          options: ["Post::onlyTrashed()", "Post::withTrashed()", "Post::getDeleted()", "Post::trashOnly()"],
+          correctAnswer: 0,
+          explanation:
+            "Post::onlyTrashed() filters the query to return only records where deleted_at is NOT null.",
+          xp: 25,
+        },
+      },
+      {
+        id: "m21l3",
+        moduleId: "m21",
+        title: "Chunking, Cursor & Lazy Collections",
+        readTime: "8 min",
+        xp: 50,
+        summary:
+          "Process millions of database rows without exhausting PHP memory using Generators, chunk(), and lazy().",
+        flutterParallel: {
+          concept: "ListView.builder Lazy Rendering vs PHP Generator Streaming",
+          flutterFile: "lib/features/feed/presentation/infinite_feed.dart",
+          laravelFile: "app/Jobs/ExportLargeDataset.php",
+          flutterCode: `// Flutter ListView.builder renders items on-demand,
+// keeping memory usage flat even with 100,000 list items:
+ListView.builder(
+  itemCount: 100000,
+  itemBuilder: (context, index) => PostTile(post: posts[index]),
+);`,
+          laravelCode: `// BAD: User::all() loads 500k rows into RAM -> Fatal Memory Limit!
+// GOOD: lazy() uses PHP Generators to stream rows with ~10MB RAM:
+User::lazy()->each(function (User \$user) use (\$file) {
+  fputcsv(\$file, [\$user->id, \$user->email]);
+});
+
+// Or chunk() for batch processing:
+User::chunk(500, function (\$users) {
+  foreach (\$users as \$user) {
+    \$user->recalculateReputation();
+  }
+});`,
+          explanation:
+            "Just as Flutter's ListView.builder creates widgets on-demand as the user scrolls, Laravel's lazy() and cursor() methods use PHP Generators under the hood to fetch rows sequentially without buffering the entire table in server memory.",
+        },
+        content: [
+          "Running `Model::all()` on a large production table causes PHP `Allowed memory size exhausted` fatal 500 crashes.",
+          "`chunk($count, callable)` executes separate paginated SQL queries of size `$count`, freeing memory between batches.",
+          "`cursor()` and `lazy()` execute a single SQL query and stream records one by one using a PHP Generator cursor.",
+          "When modifying rows inside a chunk loop, always use `chunkById()` instead of `chunk()` to avoid skipping rows as primary keys shift.",
+        ],
+        challenge: {
+          type: "mcq",
+          question:
+            "Why is using `User::lazy()` or `User::cursor()` superior to `User::all()` when exporting 1,000,000 user rows to CSV?",
+          options: [
+            "It streams rows one by one using PHP Generators, keeping memory usage constant (~10MB) regardless of dataset size",
+            "It automatically compresses the CSV file using GZIP in MySQL",
+            "It translates PHP code into C++ binary for 10x faster execution",
+            "It bypasses database authentication for higher throughput",
+          ],
+          correctAnswer: 0,
+          explanation:
+            "Generators yield one model instance at a time from the database cursor, preventing memory exhaustion on huge datasets.",
+          xp: 30,
+        },
+      },
+      {
+        id: "m21l4",
+        moduleId: "m21",
+        title: "Attribute Casts, Enums & AsArrayObject",
+        readTime: "7 min",
+        xp: 45,
+        summary:
+          "Eliminate magic strings and JSON parsing boilerplate with PHP 8.1+ backed Enums and fluent Eloquent casts.",
+        flutterParallel: {
+          concept: "Dart Backed Enum Serialization vs PHP 8.2 Backed Enums in Eloquent",
+          flutterFile: "lib/features/orders/domain/order_status.dart",
+          laravelFile: "app/Models/Order.php",
+          flutterCode: `// Dart Backed Enum:
+enum OrderStatus {
+  pending('pending'),
+  processing('processing'),
+  shipped('shipped'),
+  delivered('delivered');
+
+  final String value;
+  const OrderStatus(this.value);
+}`,
+          laravelCode: `// PHP 8 Backed Enum:
+enum OrderStatus: string {
+  case Pending = 'pending';
+  case Processing = 'processing';
+  case Shipped = 'shipped';
+  case Delivered = 'delivered';
+}
+
+class Order extends Model {
+  protected function casts(): array {
+    return [
+      'status' => OrderStatus::class,
+      'metadata' => AsArrayObject::class,
+      'is_paid' => 'boolean',
+    ];
+  }
+}`,
+          explanation:
+            "In Flutter, enums give compile-time safety over status values. In Laravel, declaring enum casts in the model automatically deserializes string database columns into typed PHP enum instances ($order->status === OrderStatus::Delivered) and serializes them back on save.",
+        },
+        content: [
+          "Magic strings like `if ($order->status == 'delivred')` lead to silent production bugs that tests miss.",
+          "In Laravel 11, define casts using the `protected function casts(): array` method on your model.",
+          "Casting to a backed PHP Enum ensures invalid database values throw a `ValueError` immediately rather than propagating corrupt state.",
+          "The `AsArrayObject` cast allows JSON columns to be mutated directly as in-memory arrays/objects: `$user->metadata['theme'] = 'dark'; $user->save();`.",
+        ],
+        challenge: {
+          type: "fill-blank",
+          question:
+            "Which method in Laravel 11 models defines attribute type conversions such as enums and JSON objects?",
+          code: `protected function {{blank}}(): array {\n  return ['status' => OrderStatus::class];\n}`,
+          options: ["casts", "attributes", "mutators", "types"],
+          correctAnswer: "casts",
+          explanation:
+            "In Laravel 11+, attribute casts are declared via the protected function casts(): array method on Eloquent models.",
+          xp: 25,
+        },
+      },
+    ],
+  },
+
+  {
+    id: "m22",
+    index: 22,
+    trackId: "track-6",
+    trackName: "Track 6: Database Mastery & Performance",
+    title: "Raw SQL, Query Builder & Index Optimization",
+    tagline: "Sub-millisecond query execution and deep indexing",
+    description:
+      "When Eloquent is not enough: write raw SQL subqueries, analyze query plans with EXPLAIN ANALYZE, prevent race conditions with pessimistic locking, and profile queries.",
+    color: "#06b6d4",
+    icon: "zap",
+    lessons: [
+      {
+        id: "m22l1",
+        moduleId: "m22",
+        title: "Raw SQL, Subqueries & whereExists",
+        readTime: "8 min",
+        xp: 50,
+        summary:
+          "Write high-performance correlated subqueries and advanced aggregations using DB::raw and selectSub.",
+        flutterParallel: {
+          concept: "In-Memory Dart List Calculations vs Server-Side SQL Subqueries",
+          flutterFile: "lib/features/analytics/services/analytics_calculator.dart",
+          laravelFile: "app/Services/UserMetricsService.php",
+          flutterCode: `// Slow client-side calculation:
+final users = await api.getUsersWithOrders();
+// Calculating total spent in Dart memory across 50,000 items:
+final topSpenders = users.where(
+  (u) => u.orders.fold<double>(0, (sum, o) => sum + o.total) > 1000,
+);`,
+          laravelCode: `// Fast server-side SQL correlated subquery in 2ms:
+\$topSpenders = User::select('users.*')
+  ->selectSub(function (\$query) {
+    \$query->from('orders')
+      ->selectRaw('COALESCE(SUM(total_amount), 0)')
+      ->whereColumn('orders.user_id', 'users.id');
+  }, 'lifetime_spend')
+  ->having('lifetime_spend', '>', 1000)
+  ->get();`,
+          explanation:
+            "Never fetch thousands of records to the Flutter client just to perform mathematical sums or counts. Correlated SQL subqueries execute inside the database engine in milliseconds, returning only the exact computed numbers your UI needs.",
+        },
+        content: [
+          "Eloquent's `selectSub()` attaches calculated subquery values to your models as if they were real table columns.",
+          "`whereExists()` and `whereNotExists()` compile to fast correlated SQL `EXISTS (...)` filters, outperforming heavy `JOIN` operations on large tables.",
+          "`DB::raw()` allows injecting raw SQL expressions into `select`, `where`, and `orderBy` clauses when standard query builder helpers fall short.",
+          "Always use parameterized bindings when passing user input into raw expressions to prevent SQL injection vulnerabilities.",
+        ],
+        challenge: {
+          type: "fill-blank",
+          question:
+            "What query builder method allows you to evaluate a correlated subquery and alias its computed scalar value as a column on the model?",
+          code: `User::select('users.*')->{{blank}}(function (\$query) {\n  \$query->from('orders')->selectRaw('COUNT(*)')->whereColumn('orders.user_id', 'users.id');\n}, 'orders_count');`,
+          options: ["selectSub", "withCount", "addSubSelect", "joinSub"],
+          correctAnswer: "selectSub",
+          explanation:
+            "selectSub(Closure, alias) embeds a subquery into the SELECT clause and assigns its result to the specified attribute alias.",
+          xp: 30,
+        },
+      },
+      {
+        id: "m22l2",
+        moduleId: "m22",
+        title: "Index Optimization & EXPLAIN ANALYZE",
+        readTime: "8 min",
+        xp: 50,
+        summary:
+          "Read query execution plans, eliminate Seq Scans, and design composite B-Tree indexes matching your WHERE and ORDER BY clauses.",
+        flutterParallel: {
+          concept: "Flutter DevTools Frame Profiling vs PostgreSQL EXPLAIN ANALYZE",
+          flutterFile: "devtools/performance_profile.dart",
+          laravelFile: "database/migrations/add_composite_index.php",
+          flutterCode: `// Flutter DevTools shows 16ms jank frame when building list.
+// Cause: Backend API endpoint takes 4.2 seconds to return!`,
+          laravelCode: `// 1. Diagnose in PostgreSQL / MySQL:
+// EXPLAIN ANALYZE SELECT * FROM posts WHERE user_id = 42 ORDER BY created_at DESC;
+// -> Seq Scan on posts (cost=14200.00..18900.00 rows=500000 width=128) [SLOW!]
+
+// 2. Fix with Composite B-Tree Index:
+Schema::table('posts', function (Blueprint \$table) {
+  \$table->index(['user_id', 'created_at']);
+});
+// -> Index Scan using idx_posts_user_created (cost=0.42..8.45 rows=20) [2ms!]`,
+          explanation:
+            "When an API endpoint responds slowly, 95% of the time it is caused by a missing database index forcing MySQL to scan every single row on disk (Full Table / Seq Scan). EXPLAIN ANALYZE shows the exact execution plan and cost.",
+        },
+        content: [
+          "A database index is a B-Tree data structure that allows binary search lookup in O(log N) time instead of O(N) table scans.",
+          "Composite indexes `['user_id', 'created_at']` speed up queries filtering by `user_id` and sorting by `created_at` simultaneously.",
+          "Leftmost Prefix Rule: An index on `(A, B, C)` can satisfy queries on `(A)`, `(A, B)`, or `(A, B, C)`, but NOT `(B)` or `(C)` alone.",
+          "Over-indexing penalty: Every index speeds up `SELECT` queries but slows down `INSERT`, `UPDATE`, and `DELETE` queries as indexes must be rebalanced.",
+        ],
+        challenge: {
+          type: "mcq",
+          question:
+            "According to the Leftmost Prefix rule, which query will NOT be able to utilize a composite index on columns `(user_id, status, created_at)`?",
+          options: [
+            "SELECT * FROM orders WHERE status = 'paid' AND created_at > NOW()",
+            "SELECT * FROM orders WHERE user_id = 5",
+            "SELECT * FROM orders WHERE user_id = 5 AND status = 'paid'",
+            "SELECT * FROM orders WHERE user_id = 5 AND status = 'paid' ORDER BY created_at",
+          ],
+          correctAnswer: 0,
+          explanation:
+            "Because the query filters by 'status' without specifying the leading 'user_id' column, the B-tree index cannot be traversed from its root.",
+          xp: 30,
+        },
+      },
+      {
+        id: "m22l3",
+        moduleId: "m22",
+        title: "Database Transactions & Concurrency Locking",
+        readTime: "8 min",
+        xp: 50,
+        summary:
+          "Prevent race conditions and double-spending using DB::transaction and pessimistic lockForUpdate().",
+        flutterParallel: {
+          concept: "Optimistic Concurrency in Client State vs Pessimistic DB Locking",
+          flutterFile: "lib/features/wallet/presentation/transfer_dialog.dart",
+          laravelFile: "app/Services/WalletTransferService.php",
+          flutterCode: `// Mobile client triggers transfer button twice rapidly:
+// Both requests hit the server at the exact same millisecond!`,
+          laravelCode: `// Pessimistic Locking prevents double-spend race conditions:
+DB::transaction(function () use (\$fromId, \$toId, \$amount) {
+  // lockForUpdate() acquires an exclusive row lock in MySQL:
+  \$sender = Wallet::where('id', \$fromId)->lockForUpdate()->first();
+  \$receiver = Wallet::where('id', \$toId)->lockForUpdate()->first();
+
+  if (\$sender->balance < \$amount) {
+    throw new InsufficientFundsException();
+  }
+
+  \$sender->decrement('balance', \$amount);
+  \$receiver->increment('balance', \$amount);
+});`,
+          explanation:
+            "If a user taps 'Withdraw \$100' on their phone twice simultaneously, two server threads read balance=\$100 before either writes balance=\$0. Using lockForUpdate() forces the second request to pause until the first transaction commits.",
+        },
+        content: [
+          "Race conditions occur when concurrent requests read stale state before previous mutations commit.",
+          "`DB::transaction()` wraps database operations in `BEGIN` and `COMMIT`, automatically rolling back on any thrown exception.",
+          "`lockForUpdate()` (Pessimistic Write Lock) instructs the database engine to lock selected rows until the surrounding transaction finishes.",
+          "`sharedLock()` (Pessimistic Read Lock) prevents other transactions from mutating the row while allowing concurrent reads.",
+        ],
+        challenge: {
+          type: "fill-blank",
+          question:
+            "What Eloquent method attaches a pessimistic 'SELECT ... FOR UPDATE' exclusive lock to a query inside a database transaction?",
+          code: `\$wallet = Wallet::where('user_id', \$user->id)->{{blank}}()->first();`,
+          options: ["lockForUpdate", "sharedLock", "lock", "pessimisticLock"],
+          correctAnswer: "lockForUpdate",
+          explanation:
+            "lockForUpdate() acquires an exclusive row-level lock, blocking other transactions from modifying or locking the same row until commit.",
+          xp: 30,
+        },
+      },
+      {
+        id: "m22l4",
+        moduleId: "m22",
+        title: "Database Query Profiling & Slow Query Logging",
+        readTime: "7 min",
+        xp: 45,
+        summary:
+          "Intercept database queries with DB::listen and configure automated alerts for slow SQL executions.",
+        flutterParallel: {
+          concept: "Dio Logging Interceptors vs Laravel DB::listen Query Hooks",
+          flutterFile: "lib/core/network/dio_query_logger.dart",
+          laravelFile: "app/Providers/AppServiceProvider.php",
+          flutterCode: `// Flutter Dio interceptor logs HTTP latency:
+dio.interceptors.add(InterceptorsWrapper(
+  onResponse: (response, handler) {
+    print('HTTP \${response.statusCode} in \${response.extra['duration']}ms');
+  },
+));`,
+          laravelCode: `// In AppServiceProvider.php:
+public function boot(): void {
+  // Listen to every executed SQL query across the application:
+  DB::listen(function (QueryExecuted \$query) {
+    if (\$query->time > 100) { // Log queries taking longer than 100ms
+      Log::warning("Slow Query Detected: {\$query->time}ms", [
+        'sql' => \$query->sql,
+        'bindings' => \$query->bindings,
+        'connection' => \$query->connectionName,
+      ]);
+    }
+  });
+}`,
+          explanation:
+            "While client Dio interceptors measure round-trip network time, Laravel's DB::listen hook inspects the exact SQL statement and database execution duration for every query, letting you detect query regressions before they impact users.",
+        },
+        content: [
+          "`DB::listen(callable)` registers a global callback executed after every database query runs.",
+          "The `QueryExecuted` object exposes `$query->sql`, `$query->bindings`, `$query->time` (in milliseconds), and `$query->connectionName`.",
+          "Tools like Laravel Telescope and Laravel Pulse visualize query execution time histograms and identify duplicate queries.",
+          "In production, never log sensitive parameters (e.g. hashed passwords or credit card tokens) inside query bindings.",
+        ],
+        challenge: {
+          type: "mcq",
+          question:
+            "Where in a Laravel application should you register a global `DB::listen()` hook to monitor slow queries?",
+          options: [
+            "In the `boot()` method of `app/Providers/AppServiceProvider.php`",
+            "Inside the `routes/api.php` file",
+            "Inside the `.env` file directly",
+            "In the `database/seeders/DatabaseSeeder.php` class",
+          ],
+          correctAnswer: 0,
+          explanation:
+            "AppServiceProvider's boot() method runs on every application request, making it the canonical place to register global query listeners.",
+          xp: 25,
+        },
+      },
+    ],
+  },
+
+  {
+    id: "m23",
+    index: 23,
+    trackId: "track-6",
+    trackName: "Track 6: Database Mastery & Performance",
+    title: "Multi-Tenancy & Data Isolation",
+    tagline: "Enterprise SaaS architecture and tenant security",
+    description:
+      "Build secure B2B multi-tenant backends. Isolate client data using Global Scopes, database multi-tenancy, and PostgreSQL Row-Level Security (RLS).",
+    color: "#06b6d4",
+    icon: "shield-check",
+    lessons: [
+      {
+        id: "m23l1",
+        moduleId: "m23",
+        title: "Single DB vs Multi-DB Multi-Tenancy",
+        readTime: "7 min",
+        xp: 45,
+        summary:
+          "Evaluate multi-tenant architecture models: column-based tenant scoping, schema-per-tenant, and database-per-tenant.",
+        flutterParallel: {
+          concept: "Switching Organization / Workspace in Mobile App vs Backend Multi-Tenancy",
+          flutterFile: "lib/features/workspace/presentation/workspace_selector.dart",
+          laravelFile: "app/Http/Middleware/IdentifyTenant.php",
+          flutterCode: `// Mobile client switches current organization:
+await workspaceStore.switchWorkspace(orgId: 'org_acme');
+// Future HTTP calls pass 'X-Tenant-ID: org_acme' in headers
+dio.options.headers['X-Tenant-ID'] = 'org_acme';`,
+          laravelCode: `// Multi-Tenancy Models in Laravel:
+// Model 1: Column-based (tenant_id on every table) -> Simplest, lowest cost
+// Model 2: Database-per-tenant -> Absolute data isolation, compliance
+class IdentifyTenant {
+  public function handle(Request \$request, Closure \$next) {
+    \$tenantId = \$request->header('X-Tenant-ID') ?? \$request->user()?->tenant_id;
+    abort_if(!\$tenantId, 400, 'Tenant identifier missing');
+    app()->instance('current_tenant_id', \$tenantId);
+    return \$next(\$request);
+  }
+}`,
+          explanation:
+            "In B2B SaaS apps (like Slack or Notion), users belong to distinct companies (tenants). Single-database tenancy adds a tenant_id column to every table; multi-database tenancy switches the active MySQL connection dynamically per request.",
+        },
+        content: [
+          "Single-Database Multi-Tenancy: All tenants share the same database and tables, isolated by `tenant_id` column filters.",
+          "Multi-Database Multi-Tenancy: Each company has its own isolated database instance, preventing accidental cross-tenant data leaks.",
+          "Trade-off: Single DB is 10x cheaper to host and simpler to backup, but requires bulletproof application-level scoping.",
+          "Packages like `spatie/laravel-multitenancy` and `stancl/tenancy` provide automatic domain, subdomain, and header-based tenant resolution.",
+        ],
+        challenge: {
+          type: "mcq",
+          question:
+            "What is the primary benefit of Single-Database Multi-Tenancy compared to Database-per-Tenant architecture?",
+          options: [
+            "Significantly lower server hosting cost and simpler schema migration management across all tenants",
+            "It guarantees that MySQL never requires database indexes",
+            "It eliminates the need for user passwords",
+            "It allows mobile Flutter apps to compile without Dart code",
+          ],
+          correctAnswer: 0,
+          explanation:
+            "Single-database tenancy requires running migrations on only one database rather than orchestrating schema updates across thousands of separate tenant databases.",
+          xp: 25,
+        },
+      },
+      {
+        id: "m23l2",
+        moduleId: "m23",
+        title: "Global Scopes for Automatic Tenant Isolation",
+        readTime: "8 min",
+        xp: 50,
+        summary:
+          "Enforce tenant security automatically using Eloquent Global Scopes so developers never forget WHERE tenant_id = ?.",
+        flutterParallel: {
+          concept: "Base Repository Auto-Attaching Headers vs Eloquent Global Scopes",
+          flutterFile: "lib/core/repositories/base_repository.dart",
+          laravelFile: "app/Models/Scopes/TenantScope.php",
+          flutterCode: `// Dart repository auto-attaches tenant parameter:
+abstract class BaseRepository {
+  Map<String, dynamic> withTenant(Map<String, dynamic> params) {
+    return {...params, 'tenant_id': currentTenantId};
+  }
+}`,
+          laravelCode: `// 1. Define Global Scope:
+class TenantScope implements Scope {
+  public function apply(Builder \$builder, Model \$model): void {
+    if (app()->has('current_tenant_id')) {
+      \$builder->where(\$model->getTable() . '.tenant_id', app('current_tenant_id'));
+    }
+  }
+}
+
+// 2. Attach to Model:
+class Project extends Model {
+  protected static function booted(): void {
+    static::addGlobalScope(new TenantScope);
+  }
+}`,
+          explanation:
+            "Relying on developers to manually write where('tenant_id', $id) on every query is a major security vulnerability. Eloquent Global Scopes automatically intercept all SELECT, UPDATE, and DELETE queries to inject the active tenant filter.",
+        },
+        content: [
+          "Global Scopes allow you to add constraints to all queries for a given model automatically.",
+          "A `TenantScope` prevents cross-tenant data leaks by guaranteeing that `$project = Project::find($id)` only resolves if the record belongs to the active tenant.",
+          "Automatic saving: Trait `BelongsToTenant` can hook into `creating` to set `$model->tenant_id = app('current_tenant_id')` automatically.",
+          "Bypassing the scope: SuperAdmin analytics queries can use `Project::withoutGlobalScope(TenantScope::class)->get()`.",
+        ],
+        challenge: {
+          type: "fill-blank",
+          question:
+            "Which Eloquent method registers a Global Scope inside a model's booted() lifecycle method?",
+          code: `protected static function booted(): void {\n  static::{{blank}}(new TenantScope);\n}`,
+          options: ["addGlobalScope", "applyScope", "registerScope", "withScope"],
+          correctAnswer: "addGlobalScope",
+          explanation:
+            "static::addGlobalScope(ScopeInterface) attaches a global query scope to the model class.",
+          xp: 30,
+        },
+      },
+      {
+        id: "m23l3",
+        moduleId: "m23",
+        title: "PostgreSQL Row-Level Security (RLS) with Laravel",
+        readTime: "8 min",
+        xp: 50,
+        summary:
+          "Enforce tenant data isolation at the database kernel level using PostgreSQL RLS policies and session variables.",
+        flutterParallel: {
+          concept: "Supabase RLS Policies vs PostgreSQL RLS in Laravel",
+          flutterFile: "supabase/schema.sql",
+          laravelFile: "app/Http/Middleware/SetDatabaseSessionTenant.php",
+          flutterCode: `// Supabase RLS policy in PostgreSQL:
+CREATE POLICY "Tenant isolation" ON projects
+  FOR ALL USING (tenant_id = auth.jwt() ->> 'tenant_id');`,
+          laravelCode: `// In Laravel Middleware:
+public function handle(Request \$request, Closure \$next) {
+  \$tenantId = \$request->header('X-Tenant-ID');
+  // Set PostgreSQL local session config variable:
+  DB::statement("SET LOCAL app.current_tenant_id = ?", [\$tenantId]);
+  return \$next(\$request);
+}
+
+// In PostgreSQL Migration:
+// CREATE POLICY tenant_isolation_policy ON projects
+//   USING (tenant_id = current_setting('app.current_tenant_id', true));`,
+          explanation:
+            "Even if a rogue application query runs without a WHERE clause, PostgreSQL Row-Level Security (RLS) rejects the query at the database engine level if the tenant_id does not match the active session variable. This provides defense-in-depth security.",
+        },
+        content: [
+          "Application-level scoping (Global Scopes) can still be accidentally bypassed by raw SQL queries or misconfigured third-party packages.",
+          "PostgreSQL Row-Level Security (RLS) enforces authorization rules directly inside the database query planner.",
+          "`SET LOCAL app.current_tenant_id = '...'` assigns a session variable valid only for the duration of the current database transaction.",
+          "RLS ensures that even if an SQL injection vulnerability occurs, the attacker cannot read records belonging to other tenants.",
+        ],
+        challenge: {
+          type: "mcq",
+          question:
+            "Why does PostgreSQL Row-Level Security (RLS) provide stronger security guarantees than PHP application-level `WHERE` clauses?",
+          options: [
+            "It is enforced by the database kernel itself, preventing data leakage even if application code or raw SQL forgets the filter",
+            "It automatically translates PostgreSQL tables into Redis key-value pairs",
+            "It eliminates the need for database backups",
+            "It forces Flutter mobile apps to run with root permissions",
+          ],
+          correctAnswer: 0,
+          explanation:
+            "RLS operates at the database engine layer, so no matter how a query is executed (raw SQL, Eloquent, or ORM), the database refuses to return unauthorized rows.",
+          xp: 25,
+        },
+      },
+      {
+        id: "m23l4",
+        moduleId: "m23",
+        title: "Tenant Migrations & Safe Cross-Tenant Analytics",
+        readTime: "7 min",
+        xp: 45,
+        summary:
+          "Orchestrate migrations across tenant databases and execute aggregated platform reporting without compromising tenant boundaries.",
+        flutterParallel: {
+          concept: "SuperAdmin Dashboard in Flutter vs Cross-Tenant Backend Queries",
+          flutterFile: "lib/features/admin/presentation/platform_stats_screen.dart",
+          laravelFile: "app/Actions/CalculatePlatformRevenue.php",
+          flutterCode: `// SuperAdmin Flutter screen aggregating metrics:
+final metrics = await adminApi.getGlobalPlatformMetrics();
+Text('Total Platform Revenue: \${metrics.totalRevenue}');`,
+          laravelCode: `// Safe cross-tenant aggregation with explicit scope removal:
+class CalculatePlatformRevenue {
+  public function __invoke(): float {
+    // Explicitly bypass TenantScope strictly within authorized admin action:
+    return Order::withoutGlobalScope(TenantScope::class)
+      ->where('status', 'paid')
+      ->sum('total_amount');
+  }
+}`,
+          explanation:
+            "Platform administrators frequently need to view global analytics (total users, aggregate revenue) across all enterprise tenants. Using withoutGlobalScope(TenantScope::class) allows authorized admin actions to query the entire dataset safely.",
+        },
+        content: [
+          "In multi-database architectures, Artisan commands like `tenancy:migrate` iterate over every tenant database to apply schema updates sequentially.",
+          "`Model::withoutGlobalScope(TenantScope::class)` temporarily removes the tenant filter for system-level administrative operations.",
+          "Always protect cross-tenant query actions behind strict Gate/Policy authorization (e.g. `Gate::authorize('view-platform-analytics')`).",
+          "Read replicas or aggregated data warehouses (like Snowflake or BigQuery) are recommended when cross-tenant reporting queries become computationally heavy.",
+        ],
+        challenge: {
+          type: "fill-blank",
+          question:
+            "Which Eloquent method temporarily bypasses a specific global scope for an administrative query?",
+          code: `\$globalOrders = Order::{{blank}}(TenantScope::class)->where('status', 'paid')->get();`,
+          options: ["withoutGlobalScope", "withoutScope", "ignoreScope", "bypassGlobalScope"],
+          correctAnswer: "withoutGlobalScope",
+          explanation:
+            "withoutGlobalScope(ScopeClass) instructs Eloquent to remove the specified scope constraint for that query invocation.",
+          xp: 30,
+        },
+      },
+    ],
+  },
+
+  {
+    id: "m24",
+    index: 24,
+    trackId: "track-6",
+    trackName: "Track 6: Database Mastery & Performance",
+    title: "Zero-Downtime Database Migrations & DevOps",
+    tagline: "Deploy schema alterations to production with 0% downtime",
+    description:
+      "Execute zero-downtime schema changes, background data backfilling, schema dump squashing, and point-in-time recovery for mission-critical backends.",
+    color: "#06b6d4",
+    icon: "hard-drive",
+    lessons: [
+      {
+        id: "m24l1",
+        moduleId: "m24",
+        title: "Safe Schema Alterations (Expand & Contract Pattern)",
+        readTime: "8 min",
+        xp: 50,
+        summary:
+          "Evolve database schemas without breaking running Flutter mobile clients or locking high-traffic MySQL tables.",
+        flutterParallel: {
+          concept: "Supporting Multiple Active Mobile App Versions vs Expand & Contract Migrations",
+          flutterFile: "lib/features/profile/data/models/user_model.dart",
+          laravelFile: "database/migrations/2026_10_01_expand_users_table.php",
+          flutterCode: `// Mobile app v1 sends 'name', app v2 sends 'first_name' & 'last_name':
+// The backend API must handle both during the transition period!`,
+          laravelCode: `// The 3 Phases of Zero-Downtime Expand & Contract:
+// Phase 1 (Expand): Add new columns as NULLABLE
+Schema::table('users', function (Blueprint \$table) {
+  \$table->string('first_name')->nullable();
+  \$table->string('last_name')->nullable();
+});
+
+// Phase 2 (Transition): Application dual-writes to both old and new columns,
+// while a background queue job backfills existing rows.
+
+// Phase 3 (Contract): Drop old 'name' column once all mobile clients upgrade.`,
+          explanation:
+            "Renaming a column directly (RENAME COLUMN name TO full_name) in production causes immediate 500 errors for any active Flutter client or web server thread still executing queries. The Expand and Contract pattern ensures zero downtime.",
+        },
+        content: [
+          "Never perform destructive schema operations (renaming columns, dropping columns, adding non-nullable columns) in a single deployment.",
+          "Expand: Add new columns as nullable or with defaults so old application code continues functioning without error.",
+          "Transition: Deploy updated backend code that writes to both old and new columns, and backfill historical rows via queue jobs.",
+          "Contract: Once old mobile app versions are deprecated or traffic ceases, safely drop the old legacy column in a final migration.",
+        ],
+        challenge: {
+          type: "mcq",
+          question:
+            "Why is renaming a column directly with `RENAME COLUMN old_name TO new_name` in a high-traffic production database dangerous?",
+          options: [
+            "It immediately breaks running backend server threads and mobile clients that are still executing queries using the old column name",
+            "It automatically deletes all foreign key constraints across the entire database",
+            "MySQL will refuse to execute any further SELECT queries for 24 hours",
+            "It disables HTTPS encryption on all incoming requests",
+          ],
+          correctAnswer: 0,
+          explanation:
+            "During a rolling deployment, some server instances run old code while others run new code. Renaming a column instantly breaks queries referencing the old name.",
+          xp: 25,
+        },
+      },
+      {
+        id: "m24l2",
+        moduleId: "m24",
+        title: "Background Data Backfilling with Queued Jobs",
+        readTime: "8 min",
+        xp: 50,
+        summary:
+          "Backfill millions of database records asynchronously in controlled batches using chunkById and queued jobs.",
+        flutterParallel: {
+          concept: "Background Local Database Migration in Flutter vs Queued Data Backfills",
+          flutterFile: "lib/core/database/local_migration.dart",
+          laravelFile: "app/Jobs/BackfillUserUuidsJob.php",
+          flutterCode: `// Flutter running SQLite data transform in background isolate:
+await compute(migrateLegacyLocalTokens, dbPath);`,
+          laravelCode: `class BackfillUserUuidsJob implements ShouldQueue {
+  use Dispatchable, InteractsWithQueue, Queueable;
+
+  public function handle(): void {
+    // chunkById prevents table locking and infinite loops:
+    User::whereNull('uuid')->chunkById(1000, function (\$users) {
+      foreach (\$users as \$user) {
+        \$user->updateQuietly(['uuid' => (string) Str::uuid()]);
+      }
+      // Pause slightly to let database replication catch up:
+      usleep(50000); // 50ms sleep
+    });
+  }
+}`,
+          explanation:
+            "Running UPDATE users SET uuid = UUID() directly in a migration will lock the entire users table for minutes, bringing down your production API. Moving the data backfill into a background queue job processes records safely without locking.",
+        },
+        content: [
+          "Database migrations should only modify structure (DDL); they should never execute heavy data transformations (DML) on millions of rows.",
+          "`updateQuietly()` updates the database record without firing Eloquent model events or updating `updated_at` timestamps.",
+          "`chunkById()` uses primary key pagination (`WHERE id > last_seen_id`), preventing memory leaks and skipped records.",
+          "Throttling backfill loops with `usleep()` gives database read replicas time to replicate changes without lag.",
+        ],
+        challenge: {
+          type: "fill-blank",
+          question:
+            "Which Eloquent method updates model attributes in the database without triggering model events or touching timestamps?",
+          code: `\$user->{{blank}}(['uuid' => (string) Str::uuid()]);`,
+          options: ["updateQuietly", "saveQuietly", "rawUpdate", "silentUpdate"],
+          correctAnswer: "updateQuietly",
+          explanation:
+            "updateQuietly() updates the database row while suppressing all Eloquent model event listeners and maintaining existing updated_at timestamps.",
+          xp: 30,
+        },
+      },
+      {
+        id: "m24l3",
+        moduleId: "m24",
+        title: "Migration Squashing & Schema Dumps",
+        readTime: "7 min",
+        xp: 45,
+        summary:
+          "Consolidate hundreds of historical migration files into a single schema dump using php artisan schema:dump.",
+        flutterParallel: {
+          concept: "Squashing Git Commits vs Squashing Historical Laravel Migrations",
+          flutterFile: "git_squash.sh",
+          laravelFile: "database/schema/mysql-schema.sql",
+          flutterCode: `// Squashing 200 old commits into a clean master branch:
+git reset --soft HEAD~200 && git commit -m "Squashed initial release"`,
+          laravelCode: `// In terminal:
+// 1. Dumps existing schema into a single SQL file & deletes old migrations:
+php artisan schema:dump --prune
+
+// Result:
+// - Creates database/schema/mysql-schema.sql
+// - Removes 300 old migration files!
+// - New migrations created after this date will run normally on top.`,
+          explanation:
+            "As an enterprise application matures, accumulating 300+ migration files slows down automated test suites significantly. Squashing migrations into a single schema file boots fresh test databases in milliseconds.",
+        },
+        content: [
+          "When running tests with `RefreshDatabase`, Laravel executes all migrations from scratch. Running 300 individual migrations creates massive disk I/O.",
+          "`php artisan schema:dump` extracts the current database structure into a single `database/schema/mysql-schema.sql` file.",
+          "The `--prune` flag automatically deletes all archived migration files that were consolidated into the dump.",
+          "When deploying or testing on a fresh database, Laravel loads the single schema SQL file first, then executes only new migrations created afterward.",
+        ],
+        challenge: {
+          type: "fill-blank",
+          question:
+            "Which Artisan command generates a single schema dump file and optionally prunes historical migration files?",
+          code: `php artisan {{blank}}:dump --prune`,
+          options: ["schema", "migrate", "db", "structure"],
+          correctAnswer: "schema",
+          explanation:
+            "php artisan schema:dump creates a native SQL schema file and consolidates your migration history.",
+          xp: 25,
+        },
+      },
+      {
+        id: "m24l4",
+        moduleId: "m24",
+        title: "Point-in-Time Recovery & Database Disaster Drills",
+        readTime: "8 min",
+        xp: 50,
+        summary:
+          "Implement automated WAL archiving, test recovery procedures, and verify zero data loss disaster recovery plans.",
+        flutterParallel: {
+          concept: "Cloud Backup Sync in Flutter vs Database Point-in-Time Recovery (PITR)",
+          flutterFile: "lib/core/services/cloud_backup_service.dart",
+          laravelFile: "config/backup.php",
+          flutterCode: `// Mobile app uploading encrypted local backup snapshot to cloud:
+await cloudBackup.uploadEncryptedSnapshot(localDbFile);`,
+          laravelCode: `// Continuous PostgreSQL Write-Ahead Log (WAL) Archiving:
+// - Full daily snapshot at 00:00 UTC
+// - Continuous WAL streaming to Amazon S3 every 60 seconds
+
+// Disaster Scenario: Developer runs accidental DROP TABLE at 14:32:15 UTC.
+// Recovery: Restore 00:00 snapshot + replay WAL logs up to 14:32:14 UTC!
+// Result: 0 data loss, zero customer impact!`,
+          explanation:
+            "Point-in-Time Recovery (PITR) pairs daily base backups with continuous transaction log (WAL) archiving, allowing you to restore the database to the exact second right before an accidental data corruption event occurred.",
+        },
+        content: [
+          "The golden rule of DevOps: An untested backup is not a backup.",
+          "Point-in-Time Recovery (PITR) allows database restoration to any arbitrary second in the past retention window.",
+          "RPO (Recovery Point Objective): The maximum acceptable data loss time window (e.g. < 1 minute of transactions).",
+          "RTO (Recovery Time Objective): The maximum acceptable downtime to restore the database online (e.g. < 15 minutes).",
+        ],
+        challenge: {
+          type: "mcq",
+          question:
+            "What technology enables Point-in-Time Recovery (PITR) to restore a database to the exact second before an accidental DROP TABLE occurred?",
+          options: [
+            "Replaying continuous Write-Ahead Logs (WAL) on top of the latest base snapshot",
+            "Refreshing the browser cache on client mobile devices",
+            "Running `php artisan cache:clear` on all worker nodes",
+            "Executing MySQL table repairs in single-user mode",
+          ],
+          correctAnswer: 0,
+          explanation:
+            "PITR restores the base snapshot and replays transaction logs (WAL) up to the exact target timestamp, recovering all transactions made prior to the error.",
+          xp: 30,
+        },
+      },
+    ],
+  },
 ];
 
 /* ------------------------- per-lesson visuals --------------------- */
@@ -5589,6 +6482,150 @@ export const lessonVisuals: Record<string, LessonVisual> = {
       { label: "Exception / 500", lang: "php", code: "Sentry captures stack trace, bindings, user context & sends to dashboard" },
     ],
     note: "Distributed tracing connects mobile client events directly to backend database queries and exceptions in a unified timeline.",
+  },
+  m21l1: {
+    kind: "pipeline",
+    nodes: [
+      { label: "Parent Models", lang: "php", code: "Post::class (id: 42) & Video::class (id: 19)" },
+      { label: "MorphMap Aliasing", lang: "php", code: "Relation::enforceMorphMap([\n  'post' => Post::class,\n  'video' => Video::class\n]);" },
+      { label: "Comments Table", lang: "sql", code: "commentable_type: 'post' | commentable_id: 42\ncommentable_type: 'video' | commentable_id: 19" },
+    ],
+    note: "Polymorphic relations allow a single comments table to attach to multiple entity types safely via morphMap aliases.",
+  },
+  m21l2: {
+    kind: "pipeline",
+    nodes: [
+      { label: "Soft Deletes", lang: "php", code: "\$user->delete(); // sets deleted_at timestamp" },
+      { label: "Prunable Trait", lang: "php", code: "public function prunable() {\n  return static::where('deleted_at', '<=', now()->subDays(30));\n}" },
+      { label: "Artisan Daemon", lang: "bash", code: "php artisan model:prune\n// Automatically purges expired rows permanently" },
+    ],
+    note: "Model Pruning automatically sweeps soft-deleted or stale records from the database in memory-efficient batches.",
+  },
+  m21l3: {
+    kind: "pipeline",
+    nodes: [
+      { label: "Traditional ->get()", lang: "php", code: "User::all(); // 1,000,000 rows in RAM -> Out of Memory! (1.2GB)" },
+      { label: "LazyCollection ->lazy()", lang: "php", code: "User::lazy(1000)->each(fn (\$u) => ...); // Uses PHP Generators" },
+      { label: "DB Cursor ->cursor()", lang: "php", code: "User::cursor(); // Single SQL cursor stream (Flat 12MB RAM usage)" },
+    ],
+    note: "Cursors and LazyCollections stream millions of database rows sequentially with a constant low memory footprint.",
+  },
+  m21l4: {
+    kind: "pipeline",
+    nodes: [
+      { label: "JSON DB Column", lang: "sql", code: "settings JSONB DEFAULT '{\"theme\": \"dark\", \"notifications\": {\"push\": true}}'" },
+      { label: "Eloquent Model Cast", lang: "php", code: "protected \$casts = [\n  'settings' => AsArrayObject::class,\n  'status' => UserStatus::class\n];" },
+      { label: "Object Access & Mutation", lang: "php", code: "\$user->settings['theme'] = 'cyberpunk';\n\$user->save(); // Automatically serialized to JSON" },
+    ],
+    note: "AsArrayObject and PHP 8.1+ backed Enums provide typed, mutable object access to JSON columns without manual encoding.",
+  },
+  m22l1: {
+    kind: "pipeline",
+    nodes: [
+      { label: "Query Intent", lang: "dart", code: "Find users who have at least 1 completed order over \$100" },
+      { label: "Correlated Subquery", lang: "php", code: "User::whereExists(function (\$query) {\n  \$query->select(DB::raw(1))\n    ->from('orders')\n    ->whereColumn('orders.user_id', 'users.id')\n    ->where('total_usd', '>', 100);\n})->get();" },
+      { label: "Optimized SQL", lang: "sql", code: "SELECT * FROM users WHERE EXISTS (\n  SELECT 1 FROM orders WHERE orders.user_id = users.id AND total_usd > 100\n);" },
+    ],
+    note: "whereExists and DB::raw produce ultra-efficient correlated subqueries that stop scanning immediately upon the first match.",
+  },
+  m22l2: {
+    kind: "pipeline",
+    nodes: [
+      { label: "Unindexed Query", lang: "sql", code: "Seq Scan on orders (cost=0.00..38520.00 rows=42 width=64) [Time: 420ms]" },
+      { label: "Composite Index", lang: "php", code: "\$table->index(['tenant_id', 'status', 'created_at']);" },
+      { label: "Index Scan (EXPLAIN)", lang: "sql", code: "Index Scan using orders_tenant_status_created_idx (cost=0.42..8.44) [Time: 1.2ms]" },
+    ],
+    note: "EXPLAIN ANALYZE unmasks full sequential table scans and proves 100x speedups with composite B-Tree indexes.",
+  },
+  m22l3: {
+    kind: "pipeline",
+    nodes: [
+      { label: "Race Condition", lang: "dart", code: "Two simultaneous requests try to withdraw \$50 from a \$60 balance" },
+      { label: "Pessimistic Lock", lang: "php", code: "DB::transaction(function () {\n  \$wallet = Wallet::where('id', 1)->lockForUpdate()->first();\n  \$wallet->balance -= 50;\n  \$wallet->save();\n});" },
+      { label: "Row-Level DB Lock", lang: "sql", code: "SELECT * FROM wallets WHERE id = 1 FOR UPDATE; -- Blocks 2nd transaction" },
+    ],
+    note: "lockForUpdate acquires row-level locks inside database transactions, preventing double-spend race conditions.",
+  },
+  m22l4: {
+    kind: "pipeline",
+    nodes: [
+      { label: "DB Query Listener", lang: "php", code: "DB::whenQueryingForLongerThan(500, function (\$connection) {\n  Log::warning('Slow query detected', ['time' => \$connection->totalQueryDuration()]);\n});" },
+      { label: "Query Execution", lang: "sql", code: "SELECT * FROM large_table WHERE unindexed_col = 'test'; // 840ms" },
+      { label: "Pulse / Sentry Alert", lang: "bash", code: "ALERT [Laravel Pulse]: Slow query 840ms on /api/v1/feed dispatched to Slack" },
+    ],
+    note: "Proactive query duration thresholds trigger real-time telemetry alerts before slow queries impact user experience.",
+  },
+  m23l1: {
+    kind: "pipeline",
+    nodes: [
+      { label: "Mobile Client", lang: "dart", code: "Dio headers: {'X-Tenant-ID': 'acme-corp'}" },
+      { label: "Tenant Middleware", lang: "php", code: "\$tenant = Tenant::where('subdomain', \$slug)->firstOrFail();\ntenant_manager()->setCurrentTenant(\$tenant);" },
+      { label: "Data Isolation Strategy", lang: "bash", code: "Single DB (Shared columns + Scopes) OR Multi DB (Dynamic Connection switching)" },
+    ],
+    note: "Multi-tenancy identifies the organization from the incoming request and isolates all Eloquent queries accordingly.",
+  },
+  m23l2: {
+    kind: "pipeline",
+    nodes: [
+      { label: "Global Tenant Scope", lang: "php", code: "class TenantScope implements Scope {\n  public function apply(Builder \$b, Model \$m) {\n    \$b->where('tenant_id', current_tenant_id());\n  }\n}" },
+      { label: "Eloquent Query", lang: "php", code: "Invoice::all(); // Query automatically becomes WHERE tenant_id = 42" },
+      { label: "Admin Bypass", lang: "php", code: "Invoice::withoutGlobalScope(TenantScope::class)->get();" },
+    ],
+    note: "Global Scopes transparently append tenant constraints to every query, making multi-tenant data leaks impossible.",
+  },
+  m23l3: {
+    kind: "pipeline",
+    nodes: [
+      { label: "App Middleware", lang: "sql", code: "SET LOCAL app.current_tenant_id = 'org_987';" },
+      { label: "PostgreSQL RLS Policy", lang: "sql", code: "CREATE POLICY tenant_isolation_policy ON invoices\nFOR ALL USING (tenant_id = current_setting('app.current_tenant_id')::int);" },
+      { label: "Engine-Level Guarantee", lang: "bash", code: "Even raw SQL 'SELECT * FROM invoices' returns only org_987 rows!" },
+    ],
+    note: "PostgreSQL Row-Level Security (RLS) enforces tenant boundaries at the database engine level, independent of application code.",
+  },
+  m23l4: {
+    kind: "pipeline",
+    nodes: [
+      { label: "Super Admin Request", lang: "dart", code: "GET /api/v1/admin/analytics/total-mrr" },
+      { label: "Tenant Aggregation", lang: "php", code: "Tenant::chunk(50, function (\$tenants) {\n  foreach (\$tenants as \$tenant) {\n    \$tenant->execute(fn () => Invoice::paid()->sum('amount_cents'));\n  }\n});" },
+      { label: "Aggregated Metrics", lang: "json", code: "{\"total_mrr_usd\": 148500, \"active_tenants\": 312, \"status\": \"success\"}" },
+    ],
+    note: "Super-admin reporting iterates through isolated tenant partitions to compute global platform revenue and health metrics.",
+  },
+  m24l1: {
+    kind: "pipeline",
+    nodes: [
+      { label: "1. Expand (Additive)", lang: "php", code: "Schema::table('users', fn (\$t) => \$t->string('new_phone')->nullable());" },
+      { label: "2. Dual-Write Code", lang: "php", code: "\$user->phone = \$val; \$user->new_phone = \$val; // Deploy code" },
+      { label: "3. Contract (Cleanup)", lang: "php", code: "Schema::table('users', fn (\$t) => \$t->dropColumn('phone'));" },
+    ],
+    note: "The Expand and Contract pattern eliminates migration lockups and prevents 500 errors during rolling zero-downtime deployments.",
+  },
+  m24l2: {
+    kind: "pipeline",
+    nodes: [
+      { label: "Schema Created", lang: "sql", code: "ALTER TABLE transactions ADD COLUMN uuid UUID NULL;" },
+      { label: "Queued Backfill Job", lang: "php", code: "BackfillTransactionUuids::dispatch(\$startId, \$endId)->onQueue('migrations');" },
+      { label: "Throttled Worker", lang: "bash", code: "Processes 5,000 rows/sec without locking master DB or exhausting IOPS" },
+    ],
+    note: "Asynchronous backfilling populates large tables in throttled background queue batches instead of blocking blocking migration steps.",
+  },
+  m24l3: {
+    kind: "pipeline",
+    nodes: [
+      { label: "Legacy Migrations", lang: "bash", code: "database/migrations/ (280 migration files, takes 45s to migrate:fresh)" },
+      { label: "Artisan Squashing", lang: "bash", code: "php artisan schema:dump --prune" },
+      { label: "Single SQL Schema", lang: "sql", code: "database/schema/pgsql-schema.sql (Instant 1.2s fresh setup for CI & dev)" },
+    ],
+    note: "Schema dumping squashes years of incremental migrations into a single high-performance schema file.",
+  },
+  m24l4: {
+    kind: "pipeline",
+    nodes: [
+      { label: "Continuous WAL Archiving", lang: "bash", code: "PostgreSQL WAL (Write-Ahead Logs) continuously streamed to S3 bucket" },
+      { label: "Accidental DROP TABLE", lang: "sql", code: "DROP TABLE payments; -- Occurred at 2026-10-01 14:32:15 UTC" },
+      { label: "PITR Replay", lang: "bash", code: "recovery_target_time = '2026-10-01 14:32:14 UTC'\n// Restores state to 1 second before disaster" },
+    ],
+    note: "Point-in-Time Recovery (PITR) replays Write-Ahead Logs to restore database state to the exact second prior to corruption.",
   },
 };
 

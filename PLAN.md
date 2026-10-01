@@ -11,7 +11,7 @@
 3. [Technology Stack & Project Structure](#3-technology-stack--project-structure)
 4. [Design System & Theme Tokens](#4-design-system--theme-tokens)
 5. [Gamification & Anti-Abandonment Engine](#5-gamification--anti-abandonment-engine)
-6. [Master Curriculum: 5 Tracks, 20 REST API Modules](#6-master-curriculum-5-tracks-20-rest-api-modules)
+6. [Master Curriculum: 6 Tracks, 24 REST API Modules](#6-master-curriculum-6-tracks-24-rest-api-modules)
 7. [Interactive Task Types & Visual Teaching Tools](#7-interactive-task-types--visual-teaching-tools)
 8. [Supabase Database Architecture & Complete SQL Schema](#8-supabase-database-architecture--complete-sql-schema)
 9. [End-to-End Lesson Flow & Lifecycle Sequence](#9-end-to-end-lesson-flow--lifecycle-sequence)
@@ -258,7 +258,7 @@ Rank 10:  "Full-Stack Falcon"      (4,500 XP)
 
 ---
 
-## 6. Master Curriculum: 4 Tracks, 16 REST API Modules
+## 6. Master Curriculum: 6 Tracks, 24 REST API Modules
 
 ```mermaid
 graph TD
@@ -297,11 +297,19 @@ graph TD
         M20["🐞 M20: Global Error Handling & Logging"]
     end
 
+    subgraph T6["Track 6: Database Mastery & Performance"]
+        M21["✨ M21: Advanced Eloquent Techniques"]
+        M22["⚡ M22: Raw SQL & Index Optimization"]
+        M23["🏢 M23: Multi-Tenancy & Data Isolation"]
+        M24["🗄️ M24: Zero-Downtime Migrations & DevOps"]
+    end
+
     M01 --> M02 --> M03 --> M04
     M04 --> M05 --> M06 --> M07
     M07 --> M08 --> M09 --> M10 --> M11 --> M12
     M12 --> M13 --> M14 --> M15 --> M16
     M16 --> M17 --> M18 --> M19 --> M20
+    M20 --> M21 --> M22 --> M23 --> M24
 
     style M01 fill:#38bdf8,color:#000
     style M05 fill:#a78bfa,color:#000
@@ -309,6 +317,7 @@ graph TD
     style M11 fill:#fbbf24,color:#000
     style M16 fill:#34d399,color:#000
     style M20 fill:#fbbf24,color:#000
+    style M24 fill:#06b6d4,color:#000
 ```
 
 ---
@@ -600,6 +609,64 @@ graph TD
 | **20.4** | **Production Monitoring with Sentry & Tracing** | Sentry Flutter SDK distributed tracing | End-to-end tracing (`traceparent`), crash reporting, query history | **Code Fill** — Configure `SENTRY_LARAVEL_DSN` |
 
 **🎯 Boss Challenge:** Configure production observability for a mobile API: intercept uncaught exceptions into clean JSON envelopes, route critical alerts to Slack, and trace slow SQL queries with Sentry.
+
+---
+
+### 🗄️ Track 6: Database Mastery & Performance
+
+#### 📋 Module 21: Advanced Eloquent Techniques
+> *"Polymorphic relations, automatic pruning, low-memory cursor streams, and typed casts."*
+
+| # | Lesson Title | Flutter / Client Anchor | Key Server Concept | Interactive Task |
+|---|---|---|---|---|
+| **21.1** | **Polymorphic Relationships (morphTo, morphMany, morphMap)** | Polymorphic Flutter feed widgets (Post, Reel, Poll) | `morphTo`, `morphMany`, `morphMap` aliasing, avoiding FQCN leaks | **Code Fill** — Configure `Relation::enforceMorphMap` |
+| **21.2** | **Soft Deletes, Automatic Model Pruning & Cascading** | "Trash" folder vs permanent deletion in mobile UX | `SoftDeletes`, `Prunable` trait, `prunable()` query, `model:prune` | **MCQ** — Automatic database garbage collection mechanics |
+| **21.3** | **Memory-Safe Big Data: chunk(), cursor(), and lazy()** | Paging large local SQLite stores vs Out of Memory crash | `chunk()` vs `cursor()` vs `lazy()`, PHP Generators, flat memory consumption | **MCQ** — Low-memory query streaming vs full collection loading |
+| **21.4** | **Eloquent Custom Casts, AsArrayObject & PHP 8.1 Enums** | Freezed union models / Dart Enums vs raw JSON blobs | `AsArrayObject`, `AsEnumCollection`, typed JSON mutation tracking | **Code Fill** — Cast JSON column to `AsArrayObject` |
+
+**🎯 Boss Challenge:** Implement an audited polymorphic notification system with typed JSON metadata casts and automated 30-day soft-delete pruning.
+
+---
+
+#### 📋 Module 22: Raw SQL, Query Builder & Index Optimization
+> *"Extract every microsecond of database throughput with subqueries, B-Tree indexes, and locks."*
+
+| # | Lesson Title | Flutter / Client Anchor | Key Server Concept | Interactive Task |
+|---|---|---|---|---|
+| **22.1** | **Raw Expressions, Subqueries & whereExists Optimization** | Combining multiple REST calls into one high-performance API | `DB::raw()`, correlated subqueries, `whereExists` early-exit scans | **Code Fill** — Optimize query with `whereExists` |
+| **22.2** | **Index Optimization & Reading EXPLAIN ANALYZE Plans** | Fixing sluggish 60fps frame drops caused by slow 500ms network requests | Composite B-Tree indexes, Sequential Scan vs Index Scan, execution cost | **MCQ** — Reading PostgreSQL `EXPLAIN ANALYZE` output |
+| **22.3** | **Concurrency Control: lockForUpdate() vs Optimistic Locking** | Preventing double-spend race conditions on simultaneous mobile taps | `lockForUpdate()` pessimistic DB locks, optimistic versioning columns | **MCQ** — Preventing race conditions during financial transactions |
+| **22.4** | **Slow Query Telemetry, DB Listeners & Laravel Pulse** | In-app network inspector (Alice / Talker) vs backend telemetry | `DB::whenQueryingForLongerThan()`, slow query listeners, Laravel Pulse | **Code Fill** — Configure slow query threshold logging |
+
+**🎯 Boss Challenge:** Optimize a heavily contested wallet checkout endpoint: eliminate a full table scan with composite indexing, use correlated subqueries, and wrap operations in pessimistic locking transactions.
+
+---
+
+#### 📋 Module 23: Multi-Tenancy & Data Isolation
+> *"Architect enterprise SaaS backends with guaranteed tenant boundaries."*
+
+| # | Lesson Title | Flutter / Client Anchor | Key Server Concept | Interactive Task |
+|---|---|---|---|---|
+| **23.1** | **Multi-Tenancy Architectures: Single-DB vs Multi-DB vs Schema** | Tenant switching in mobile app drawer (`X-Tenant-ID`) | Shared database with column tenant_id, database-per-tenant, schema separation | **MCQ** — Architectural tradeoffs of Multi-Tenant isolation models |
+| **23.2** | **Automatic Tenant Scoping with Eloquent Global Scopes** | Automatic organization filters in Riverpod state | `Scope` interface, `addGlobalScope`, `withoutGlobalScope` admin bypass | **Code Fill** — Implement tenant-scoped global query filter |
+| **23.3** | **PostgreSQL Row-Level Security (RLS) for Ironclad Isolation** | Supabase mobile RLS policies vs backend RLS enforcement | `CREATE POLICY`, `current_setting('app.current_tenant_id')`, DB-level guarantees | **Code Fill** — Set local session tenant context before query |
+| **23.4** | **Cross-Tenant Analytics & Super-Admin Reporting Aggregations** | Global super-admin overview dashboard | `Tenant::chunk()`, dynamic connection switching, high-throughput aggregations | **MCQ** — Aggregating cross-tenant metrics safely without cross-talk |
+
+**🎯 Boss Challenge:** Build a multi-tenant B2B SaaS billing engine with tenant-scoped global models, PostgreSQL RLS safety checks, and secure cross-tenant metrics aggregation.
+
+---
+
+#### 📋 Module 24: Zero-Downtime Database Migrations & DevOps
+> *"Ship database schema alterations to millions of concurrent users with zero downtime."*
+
+| # | Lesson Title | Flutter / Client Anchor | Key Server Concept | Interactive Task |
+|---|---|---|---|---|
+| **24.1** | **Zero-Downtime Safe Schema Alterations (Expand & Contract)** | Backward compatibility with older mobile app versions | Expand and Contract pattern, nullable columns, dual-writing, phased deprecation | **Ordering** — Sequence Expand & Contract migration phases |
+| **24.2** | **Large-Scale Queued Data Backfilling without Table Locks** | Non-blocking database migrations during active user sessions | Chunked background migration jobs, indexed ranges, throttling IOPS | **Code Fill** — Dispatch asynchronous backfill job |
+| **24.3** | **Migration Squashing & Pruning with schema:dump** | Cleaning up legacy codebase migrations for lightning CI builds | `php artisan schema:dump --prune`, PostgreSQL schema dumps, 10x faster test boots | **MCQ** — Benefits and mechanics of migration squashing |
+| **24.4** | **Point-in-Time Recovery (PITR) & Disaster Recovery Drills** | Client offline persistence vs server disaster recovery | Write-Ahead Logs (WAL), continuous S3 archiving, second-level PITR rollbacks | **MCQ** — PITR replay to recover from accidental table drops |
+
+**🎯 Boss Challenge:** Execute an end-to-end zero-downtime database upgrade: apply an additive migration, dispatch throttled background backfill jobs, deploy dual-write code, and verify PITR backup readiness.
 
 ---
 

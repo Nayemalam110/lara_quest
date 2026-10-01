@@ -28,6 +28,7 @@ import {
   Terminal,
   Bug,
   Workflow,
+  HardDrive,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Module } from "@/data/mockData";
@@ -59,6 +60,8 @@ const MODULE_ICONS: Record<string, typeof Database> = {
   workflow: Workflow,
   lock: Lock,
   bug: Bug,
+  zap: Zap,
+  "hard-drive": HardDrive,
   // legacy aliases
   orm: Layers,
   json: FileJson,

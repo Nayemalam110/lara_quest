@@ -169,7 +169,7 @@ export interface Lesson {
   schema?: SchemaTable[];
 }
 
-export type TrackId = 'track-1' | 'track-2' | 'track-3' | 'track-4';
+export type TrackId = 'track-1' | 'track-2' | 'track-3' | 'track-4' | 'track-5' | 'track-6';
 
 export interface Track {
   id: TrackId;
@@ -198,7 +198,16 @@ export type ModuleIcon =
   | 'terminal'
   | 'orm'
   | 'json'
-  | 'shield';
+  | 'shield'
+  | 'cpu'
+  | 'layers'
+  | 'shield-alert'
+  | 'code-2'
+  | 'workflow'
+  | 'lock'
+  | 'bug'
+  | 'zap'
+  | 'hard-drive';
 
 export interface Module {
   id: string;
