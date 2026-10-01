@@ -83,13 +83,24 @@ CREATE TABLE IF NOT EXISTS public.modules (
     description TEXT,
     icon_name TEXT DEFAULT 'book-open',
     color_accent TEXT DEFAULT '#38bdf8',
-    order_index INTEGER NOT NULL UNIQUE,
-    track TEXT NOT NULL,
+    order_index INTEGER,
+    track TEXT DEFAULT 'Track 1',
     total_lessons INTEGER DEFAULT 4,
     estimated_time TEXT DEFAULT '20 mins',
     flutter_connection TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Ensure modules columns exist if table was created in an earlier phase
+ALTER TABLE public.modules ADD COLUMN IF NOT EXISTS track TEXT DEFAULT 'Track 1';
+ALTER TABLE public.modules ADD COLUMN IF NOT EXISTS subtitle TEXT;
+ALTER TABLE public.modules ADD COLUMN IF NOT EXISTS description TEXT;
+ALTER TABLE public.modules ADD COLUMN IF NOT EXISTS icon_name TEXT DEFAULT 'book-open';
+ALTER TABLE public.modules ADD COLUMN IF NOT EXISTS color_accent TEXT DEFAULT '#38bdf8';
+ALTER TABLE public.modules ADD COLUMN IF NOT EXISTS order_index INTEGER;
+ALTER TABLE public.modules ADD COLUMN IF NOT EXISTS total_lessons INTEGER DEFAULT 4;
+ALTER TABLE public.modules ADD COLUMN IF NOT EXISTS estimated_time TEXT DEFAULT '20 mins';
+ALTER TABLE public.modules ADD COLUMN IF NOT EXISTS flutter_connection TEXT;
 
 -- 5. ACHIEVEMENTS TABLE
 CREATE TABLE IF NOT EXISTS public.achievements (
@@ -103,6 +114,15 @@ CREATE TABLE IF NOT EXISTS public.achievements (
     condition_value INTEGER DEFAULT 0,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Ensure achievements columns exist if table was created in an earlier phase
+ALTER TABLE public.achievements ADD COLUMN IF NOT EXISTS key TEXT;
+ALTER TABLE public.achievements ADD COLUMN IF NOT EXISTS name TEXT;
+ALTER TABLE public.achievements ADD COLUMN IF NOT EXISTS description TEXT;
+ALTER TABLE public.achievements ADD COLUMN IF NOT EXISTS icon_emoji TEXT DEFAULT '🏆';
+ALTER TABLE public.achievements ADD COLUMN IF NOT EXISTS rarity TEXT DEFAULT 'common';
+ALTER TABLE public.achievements ADD COLUMN IF NOT EXISTS condition_type TEXT;
+ALTER TABLE public.achievements ADD COLUMN IF NOT EXISTS condition_value INTEGER DEFAULT 0;
 
 -- 6. USER ACHIEVEMENTS TABLE
 CREATE TABLE IF NOT EXISTS public.user_achievements (
