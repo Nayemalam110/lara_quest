@@ -76,6 +76,17 @@ CREATE TRIGGER on_auth_user_created
     FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
 -- 4. MODULES TABLE
+-- If modules was created in an earlier phase with integer id, recreate it cleanly
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public' AND table_name = 'modules' AND column_name = 'id' AND data_type IN ('integer', 'smallint', 'bigint')
+    ) THEN
+        DROP TABLE public.modules CASCADE;
+    END IF;
+END $$;
+
 CREATE TABLE IF NOT EXISTS public.modules (
     id TEXT PRIMARY KEY,
     title TEXT NOT NULL,
@@ -91,7 +102,7 @@ CREATE TABLE IF NOT EXISTS public.modules (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Ensure modules columns exist if table was created in an earlier phase
+-- Ensure modules columns exist if table was already present
 ALTER TABLE public.modules ADD COLUMN IF NOT EXISTS track TEXT DEFAULT 'Track 1';
 ALTER TABLE public.modules ADD COLUMN IF NOT EXISTS subtitle TEXT;
 ALTER TABLE public.modules ADD COLUMN IF NOT EXISTS description TEXT;
