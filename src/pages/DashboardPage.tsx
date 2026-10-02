@@ -9,13 +9,17 @@ import {
   Sparkles,
   ArrowUpRight,
   Boxes,
+  Award,
 } from "lucide-react";
 import { modules, totalLessons, totalXp } from "@/data/mockData";
 import { useProgressStore } from "@/store/useProgressStore";
 import { ProgressRing } from "@/components/dashboard/ProgressRing";
 import { RequestTraceCard } from "@/components/dashboard/RequestTraceCard";
 import { StreakBanner } from "@/components/dashboard/StreakBanner";
+import { DailyQuestCard } from "@/components/dashboard/DailyQuestCard";
 import { ModuleCard } from "@/components/dashboard/ModuleCard";
+import { GraduationCertificateModal } from "@/components/certificate/GraduationCertificateModal";
+import { Button } from "@/components/ui/Button";
 
 function useCountUp(target: number, duration = 900) {
   const [value, setValue] = useState(0);
@@ -38,6 +42,7 @@ function useCountUp(target: number, duration = 900) {
 export function DashboardPage() {
   const { getStats } = useProgressStore();
   const stats = getStats();
+  const [isCertOpen, setIsCertOpen] = useState(false);
   const completedLessonIds = (stats.completedLessonIds || []).map(String);
 
   const pct = Math.round((completedLessonIds.length / (totalLessons || 1)) * 100);
@@ -157,21 +162,53 @@ export function DashboardPage() {
             </div>
           </motion.div>
 
-          {/* Streak Banner */}
+          {/* Streak Banner & Daily Quest Section */}
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
-            className="mt-4 flex flex-col gap-3"
+            className="mt-4 flex flex-col gap-3.5"
           >
             <StreakBanner />
-            {pct === 100 && (
-              <div className="flex items-center gap-3 rounded-2xl border border-emerald-500/30 bg-emerald-500/15 p-4 text-emerald-300 shadow-md">
-                <CheckCircle2 size={18} className="shrink-0 text-emerald-400" />
-                <p className="text-[13.5px]">
-                  <span className="font-serif italic font-bold">Curriculum Mastered!</span>{" "}
-                  From database schema to token security — you now hold the full backend engineering model.
-                </p>
+            <DailyQuestCard />
+
+            {pct === 100 ? (
+              <div className="flex flex-wrap items-center justify-between gap-3.5 rounded-2xl border border-emerald-500/40 bg-gradient-to-r from-emerald-500/20 via-slate-900 to-sky-500/10 p-4.5 text-emerald-300 shadow-xl">
+                <div className="flex items-center gap-3">
+                  <CheckCircle2 size={20} className="shrink-0 text-emerald-400" />
+                  <div>
+                    <h4 className="font-serif italic font-bold text-white text-base">
+                      Curriculum Mastered! (24 of 24 Modules)
+                    </h4>
+                    <p className="text-xs text-slate-300">
+                      You hold the complete backend engineering mental model. Your verified graduation certificate is ready.
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  variant="brand"
+                  size="sm"
+                  onClick={() => setIsCertOpen(true)}
+                  className="text-xs font-bold shadow-[0_0_20px_rgba(244,63,94,0.4)]"
+                >
+                  <Award size={14} />
+                  <span>Claim Graduation Certificate 🎓</span>
+                </Button>
+              </div>
+            ) : (
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-800 bg-[#111827]/80 px-4 py-3 text-xs text-slate-400 shadow-sm">
+                <div className="flex items-center gap-2">
+                  <Award size={15} className="text-amber-400 shrink-0" />
+                  <span>
+                    Official <strong className="text-slate-200">Certificate of Completion</strong> unlocks upon mastering all 24 modules.
+                  </span>
+                </div>
+                <button
+                  onClick={() => setIsCertOpen(true)}
+                  className="font-mono text-sky-400 hover:text-sky-300 transition underline underline-offset-2 cursor-pointer font-semibold"
+                >
+                  Preview Certificate 🔍
+                </button>
               </div>
             )}
           </motion.div>
@@ -209,6 +246,12 @@ export function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* Graduation Certificate Modal */}
+      <GraduationCertificateModal
+        isOpen={isCertOpen}
+        onClose={() => setIsCertOpen(false)}
+      />
     </div>
   );
 }

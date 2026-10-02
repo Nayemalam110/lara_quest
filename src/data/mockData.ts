@@ -2,8 +2,18 @@
 /*  LaraQuest — Master Curriculum Data (4 Tracks, 16 Modules)         */
 /* ------------------------------------------------------------------ */
 
+export type ChallengeType =
+  | "mcq"
+  | "drag-drop"
+  | "fill-blank"
+  | "sql-writer"
+  | "api-simulator"
+  | "error-debugger"
+  | "artisan-terminal"
+  | "migration-builder";
+
 export interface Challenge {
-  type: "mcq" | "drag-drop" | "fill-blank";
+  type: ChallengeType;
   question: string;
   /** Optional code snippet (use {{blank}} as the slot for fill-blank). */
   code?: string;
@@ -12,6 +22,7 @@ export interface Challenge {
   correctAnswer: string | number;
   explanation: string;
   xp?: number;
+  [key: string]: any;
 }
 
 export interface Lesson {

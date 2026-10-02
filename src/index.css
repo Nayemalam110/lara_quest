@@ -10,7 +10,7 @@
   --color-panel: #111827;
   --color-panel2: #161f33;
   --color-panel-border: #1e293b;
-  
+
   --color-ink: #f8fafc;
   --color-ink-muted: #cbd5e1;
   --color-mut: #94a3b8;
@@ -34,29 +34,75 @@
   --animate-spin-slow: spin 14s linear infinite;
 
   @keyframes fade-up {
-    from { opacity: 0; transform: translateY(12px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
+
   @keyframes shake {
-    0%, 100% { transform: translateX(0); }
-    20% { transform: translateX(-6px); }
-    40% { transform: translateX(5px); }
-    60% { transform: translateX(-3px); }
-    80% { transform: translateX(2px); }
+
+    0%,
+    100% {
+      transform: translateX(0);
+    }
+
+    20% {
+      transform: translateX(-6px);
+    }
+
+    40% {
+      transform: translateX(5px);
+    }
+
+    60% {
+      transform: translateX(-3px);
+    }
+
+    80% {
+      transform: translateX(2px);
+    }
   }
+
   @keyframes pulse-glow {
-    0%, 100% { opacity: 0.6; }
-    50% { opacity: 1; }
+
+    0%,
+    100% {
+      opacity: 0.6;
+    }
+
+    50% {
+      opacity: 1;
+    }
   }
+
   @keyframes dash-flow {
-    to { stroke-dashoffset: -14; }
+    to {
+      stroke-dashoffset: -14;
+    }
   }
+
   @keyframes blink {
-    50% { opacity: 0; }
+    50% {
+      opacity: 0;
+    }
   }
+
   @keyframes float {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-10px); }
+
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+
+    50% {
+      transform: translateY(-10px);
+    }
   }
 }
 
@@ -83,17 +129,21 @@ body {
   scrollbar-width: thin;
   scrollbar-color: #334155 transparent;
 }
+
 *::-webkit-scrollbar {
   width: 7px;
   height: 7px;
 }
+
 *::-webkit-scrollbar-thumb {
   background: #334155;
   border-radius: 99px;
 }
+
 *::-webkit-scrollbar-thumb:hover {
   background: #475569;
 }
+
 *::-webkit-scrollbar-track {
   background: transparent;
 }
@@ -119,6 +169,7 @@ body {
   position: relative;
   overflow: hidden;
 }
+
 .card-sheen::before {
   content: "";
   position: absolute;
@@ -133,11 +184,13 @@ body {
   color: #e2e8f0;
   background: transparent;
 }
+
 .hljs-comment,
 .hljs-quote {
   color: #64748b;
   font-style: italic;
 }
+
 .hljs-keyword,
 .hljs-selector-tag,
 .hljs-doctag,
@@ -145,52 +198,64 @@ body {
   color: #f43f5e;
   font-weight: 600;
 }
+
 .hljs-string,
 .hljs-regexp,
 .hljs-meta .hljs-string {
   color: #34d399;
 }
+
 .hljs-number,
 .hljs-literal {
   color: #fbbf24;
 }
+
 .hljs-variable,
 .hljs-template-variable {
   color: #38bdf8;
 }
+
 .hljs-title,
 .hljs-title.function_,
 .hljs-section {
   color: #c084fc;
 }
+
 .hljs-title.class_,
 .hljs-type,
 .hljs-built_in {
   color: #f472b6;
 }
+
 .hljs-attr,
 .hljs-attribute,
 .hljs-name,
 .hljs-tag {
   color: #60a5fa;
 }
+
 .hljs-symbol,
 .hljs-bullet,
 .hljs-link {
   color: #fbbf24;
 }
+
 .hljs-meta {
   color: #38bdf8;
 }
+
 .hljs-operator {
   color: #e879f9;
 }
+
 .hljs-punctuation {
   color: #94a3b8;
 }
+
 .hljs-emphasis {
   font-style: italic;
 }
+
 .hljs-strong {
   font-weight: 700;
 }
@@ -198,16 +263,31 @@ body {
 /* ---------- radix dialog ---------- */
 
 @keyframes overlay-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
+
 @keyframes dialog-in {
-  from { opacity: 0; transform: translate(-50%, -46%) scale(0.95); }
-  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  from {
+    opacity: 0;
+    transform: translate(-50%, -46%) scale(0.95);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
 }
+
 .dialog-overlay-anim {
   animation: overlay-in 0.2s ease both;
 }
+
 .dialog-content-anim {
   animation: dialog-in 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
@@ -217,6 +297,7 @@ body {
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;

@@ -7,6 +7,7 @@ export interface LinePair {
   color?: string;
   dashed?: boolean;
   glow?: boolean;
+  cardinality?: string;
 }
 
 interface DrawnPath {
@@ -14,6 +15,7 @@ interface DrawnPath {
   color: string;
   dashed?: boolean;
   glow?: boolean;
+  cardinality?: string;
   mid: { x: number; y: number };
 }
 
@@ -81,6 +83,7 @@ export function ConnectionLines({
           color: p.color ?? "#64748b",
           dashed: p.dashed,
           glow: p.glow,
+          cardinality: p.cardinality || "1:N",
           mid: { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 },
         });
       }
@@ -104,17 +107,42 @@ export function ConnectionLines({
     <svg className="pointer-events-none absolute inset-0 h-full w-full overflow-visible">
       {paths.map((p, i) => (
         <g key={i}>
-          {p.glow && <path d={p.d} fill="none" stroke={p.color} strokeWidth={5} opacity={0.16} />}
+          {p.glow && <path d={p.d} fill="none" stroke={p.color} strokeWidth={6} opacity={0.2} />}
           <path
             d={p.d}
             fill="none"
             stroke={p.color}
-            strokeWidth={1.6}
+            strokeWidth={1.8}
             strokeDasharray={p.dashed ? "5 5" : undefined}
             className={p.dashed ? "animate-dash-flow" : undefined}
             strokeLinecap="round"
           />
-          <circle cx={p.mid.x} cy={p.mid.y} r={2.4} fill={p.color} />
+          {/* Relationship Cardinality Badge along cable */}
+          <g transform={`translate(${p.mid.x}, ${p.mid.y})`}>
+            <rect
+              x="-15"
+              y="-9"
+              width="30"
+              height="18"
+              rx="5"
+              fill="#090d16"
+              stroke={p.color}
+              strokeWidth="1.2"
+              className="filter drop-shadow-[0_2px_4px_rgba(0,0,0,0.6)]"
+            />
+            <text
+              x="0"
+              y="3.5"
+              textAnchor="middle"
+              fill="#ffffff"
+              fontSize="9"
+              fontWeight="bold"
+              fontFamily="monospace"
+              letterSpacing="0.05em"
+            >
+              {p.cardinality}
+            </text>
+          </g>
         </g>
       ))}
     </svg>

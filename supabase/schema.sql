@@ -319,7 +319,7 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- ==============================================================================
--- 🌱 SEED DATA: 16 MASTER CURRICULUM MODULES
+-- 🌱 SEED DATA: 24 MASTER CURRICULUM MODULES
 -- ==============================================================================
 
 INSERT INTO public.modules (id, order_index, track, title, subtitle, description, icon_name, color_accent, total_lessons, estimated_time, flutter_connection)
@@ -368,5 +368,13 @@ VALUES
 ('query_ninja', 'Query Ninja', 'Diagnose and optimize N+1 queries with eager loading', '⚡', 'rare', 'special', 1),
 ('api_builder', 'REST Champion', 'Successfully construct your first CRUD API route collection', '🔗', 'epic', 'modules', 8),
 ('token_master', 'Auth Sentinel', 'Implement Sanctum bearer token authentication', '🔐', 'epic', 'modules', 11),
-('full_stack_falcon', 'Full-Stack Falcon', 'Complete all 16 modules and earn your backend wings', '🦅', 'legendary', 'modules', 16)
-ON CONFLICT (key) DO NOTHING;
+('full_stack_falcon', 'Full-Stack Falcon', 'Complete all 24 modules and earn your backend wings', '🦅', 'legendary', 'modules', 24),
+('clean_architect', 'Clean Architect', 'Master Service Layer, DTOs & Domain Events in Track 5', '🏛️', 'epic', 'modules', 20),
+('performance_guru', 'Performance Guru', 'Master EXPLAIN ANALYZE, indexing & DB optimization in Track 6', '⚡', 'legendary', 'modules', 24),
+('saas_architect', 'SaaS Multi-Tenant Architect', 'Implement multi-tenancy & Postgres Row-Level Security in Module 23', '🏢', 'epic', 'modules', 23),
+('zero_downtime_titan', 'Zero-Downtime Titan', 'Master Expand & Contract migrations with zero downtime in Module 24', '🛡️', 'legendary', 'modules', 24)
+ON CONFLICT (key) DO UPDATE SET
+    name = EXCLUDED.name,
+    description = EXCLUDED.description,
+    condition_value = EXCLUDED.condition_value;
+

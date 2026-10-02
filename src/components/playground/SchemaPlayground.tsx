@@ -2,6 +2,8 @@ import React, { useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import {
   Boxes,
+  Code2,
+  Download,
   GripHorizontal,
   KeyRound,
   Link2,
@@ -14,6 +16,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ConnectionLines, type LinePair } from "@/components/visualizers/ConnectionLines";
+import { CodeExportModal } from "./CodeExportModal";
 
 export interface PgColumn {
   id: string;
@@ -22,6 +25,8 @@ export interface PgColumn {
   key: "" | "PK" | "FK";
   refTableId?: string;
   refColumnId?: string;
+  cardinality?: "1:N" | "1:1" | "N:N";
+  onDelete?: "CASCADE" | "RESTRICT" | "SET NULL";
 }
 
 export interface PgTable {
@@ -155,8 +160,347 @@ export function presetManyToMany(): PgTable[] {
   ];
 }
 
+export function presetMultiTenantSaaS(): PgTable[] {
+  const tenantsId = uid();
+  const usersId = uid();
+  const subsId = uid();
+  const invoicesId = uid();
+  const settingsId = uid();
+
+  const tenantPk = uid();
+  const userPk = uid();
+  const subPk = uid();
+
+  return [
+    {
+      id: tenantsId,
+      name: "tenants",
+      color: "#38bdf8",
+      x: 40,
+      y: 40,
+      columns: [
+        { id: tenantPk, name: "id", type: "bigint", key: "PK" },
+        { id: uid(), name: "name", type: "varchar(255)", key: "" },
+        { id: uid(), name: "domain", type: "varchar(255)", key: "" },
+        { id: uid(), name: "plan", type: "varchar(255)", key: "" },
+        { id: uid(), name: "created_at", type: "timestamp", key: "" },
+      ],
+    },
+    {
+      id: usersId,
+      name: "users",
+      color: "#a78bfa",
+      x: 390,
+      y: 40,
+      columns: [
+        { id: userPk, name: "id", type: "bigint", key: "PK" },
+        {
+          id: uid(),
+          name: "tenant_id",
+          type: "bigint",
+          key: "FK",
+          refTableId: tenantsId,
+          refColumnId: tenantPk,
+          cardinality: "1:N",
+          onDelete: "CASCADE",
+        },
+        { id: uid(), name: "name", type: "varchar(255)", key: "" },
+        { id: uid(), name: "email", type: "varchar(255)", key: "" },
+        { id: uid(), name: "role", type: "varchar(255)", key: "" },
+      ],
+    },
+    {
+      id: subsId,
+      name: "subscriptions",
+      color: "#fbbf24",
+      x: 40,
+      y: 350,
+      columns: [
+        { id: subPk, name: "id", type: "bigint", key: "PK" },
+        {
+          id: uid(),
+          name: "tenant_id",
+          type: "bigint",
+          key: "FK",
+          refTableId: tenantsId,
+          refColumnId: tenantPk,
+          cardinality: "1:N",
+          onDelete: "CASCADE",
+        },
+        { id: uid(), name: "stripe_customer_id", type: "varchar(255)", key: "" },
+        { id: uid(), name: "status", type: "varchar(255)", key: "" },
+        { id: uid(), name: "ends_at", type: "timestamp", key: "" },
+      ],
+    },
+    {
+      id: invoicesId,
+      name: "invoices",
+      color: "#34d399",
+      x: 390,
+      y: 350,
+      columns: [
+        { id: uid(), name: "id", type: "bigint", key: "PK" },
+        {
+          id: uid(),
+          name: "tenant_id",
+          type: "bigint",
+          key: "FK",
+          refTableId: tenantsId,
+          refColumnId: tenantPk,
+          cardinality: "1:N",
+          onDelete: "CASCADE",
+        },
+        {
+          id: uid(),
+          name: "subscription_id",
+          type: "bigint",
+          key: "FK",
+          refTableId: subsId,
+          refColumnId: subPk,
+          cardinality: "1:N",
+          onDelete: "RESTRICT",
+        },
+        { id: uid(), name: "amount_cents", type: "integer", key: "" },
+        { id: uid(), name: "status", type: "varchar(255)", key: "" },
+      ],
+    },
+    {
+      id: settingsId,
+      name: "tenant_settings",
+      color: "#f43f5e",
+      x: 740,
+      y: 160,
+      columns: [
+        { id: uid(), name: "id", type: "bigint", key: "PK" },
+        {
+          id: uid(),
+          name: "tenant_id",
+          type: "bigint",
+          key: "FK",
+          refTableId: tenantsId,
+          refColumnId: tenantPk,
+          cardinality: "1:1",
+          onDelete: "CASCADE",
+        },
+        { id: uid(), name: "theme", type: "varchar(255)", key: "" },
+        { id: uid(), name: "allow_public_signup", type: "boolean", key: "" },
+      ],
+    },
+  ];
+}
+
+export function presetPolymorphicPlatform(): PgTable[] {
+  const postsId = uid();
+  const videosId = uid();
+  const commentsId = uid();
+  const tagsId = uid();
+  const taggablesId = uid();
+
+  const postPk = uid();
+  const videoPk = uid();
+  const tagPk = uid();
+
+  return [
+    {
+      id: postsId,
+      name: "posts",
+      color: "#38bdf8",
+      x: 40,
+      y: 50,
+      columns: [
+        { id: postPk, name: "id", type: "bigint", key: "PK" },
+        { id: uid(), name: "title", type: "varchar(255)", key: "" },
+        { id: uid(), name: "content", type: "text", key: "" },
+        { id: uid(), name: "created_at", type: "timestamp", key: "" },
+      ],
+    },
+    {
+      id: videosId,
+      name: "videos",
+      color: "#fb7185",
+      x: 40,
+      y: 350,
+      columns: [
+        { id: videoPk, name: "id", type: "bigint", key: "PK" },
+        { id: uid(), name: "title", type: "varchar(255)", key: "" },
+        { id: uid(), name: "video_url", type: "varchar(255)", key: "" },
+        { id: uid(), name: "duration_seconds", type: "integer", key: "" },
+      ],
+    },
+    {
+      id: commentsId,
+      name: "comments",
+      color: "#a78bfa",
+      x: 390,
+      y: 180,
+      columns: [
+        { id: uid(), name: "id", type: "bigint", key: "PK" },
+        { id: uid(), name: "body", type: "text", key: "" },
+        { id: uid(), name: "commentable_id", type: "bigint", key: "" },
+        { id: uid(), name: "commentable_type", type: "varchar(255)", key: "" },
+        { id: uid(), name: "user_id", type: "bigint", key: "" },
+      ],
+    },
+    {
+      id: tagsId,
+      name: "tags",
+      color: "#fbbf24",
+      x: 750,
+      y: 50,
+      columns: [
+        { id: tagPk, name: "id", type: "bigint", key: "PK" },
+        { id: uid(), name: "name", type: "varchar(255)", key: "" },
+        { id: uid(), name: "slug", type: "varchar(255)", key: "" },
+      ],
+    },
+    {
+      id: taggablesId,
+      name: "taggables",
+      color: "#34d399",
+      x: 750,
+      y: 330,
+      columns: [
+        { id: uid(), name: "id", type: "bigint", key: "PK" },
+        {
+          id: uid(),
+          name: "tag_id",
+          type: "bigint",
+          key: "FK",
+          refTableId: tagsId,
+          refColumnId: tagPk,
+          cardinality: "1:N",
+          onDelete: "CASCADE",
+        },
+        { id: uid(), name: "taggable_id", type: "bigint", key: "" },
+        { id: uid(), name: "taggable_type", type: "varchar(255)", key: "" },
+      ],
+    },
+  ];
+}
+
+export function presetEnterpriseEcommerce(): PgTable[] {
+  const productsId = uid();
+  const ordersId = uid();
+  const orderItemsId = uid();
+  const paymentsId = uid();
+  const shipmentsId = uid();
+
+  const productPk = uid();
+  const orderPk = uid();
+
+  return [
+    {
+      id: productsId,
+      name: "products",
+      color: "#38bdf8",
+      x: 40,
+      y: 50,
+      columns: [
+        { id: productPk, name: "id", type: "bigint", key: "PK" },
+        { id: uid(), name: "title", type: "varchar(255)", key: "" },
+        { id: uid(), name: "sku", type: "varchar(255)", key: "" },
+        { id: uid(), name: "price", type: "decimal(8,2)", key: "" },
+        { id: uid(), name: "stock_quantity", type: "integer", key: "" },
+      ],
+    },
+    {
+      id: ordersId,
+      name: "orders",
+      color: "#fbbf24",
+      x: 400,
+      y: 50,
+      columns: [
+        { id: orderPk, name: "id", type: "bigint", key: "PK" },
+        { id: uid(), name: "order_number", type: "varchar(255)", key: "" },
+        { id: uid(), name: "total_amount", type: "decimal(8,2)", key: "" },
+        { id: uid(), name: "status", type: "varchar(255)", key: "" },
+        { id: uid(), name: "created_at", type: "timestamp", key: "" },
+      ],
+    },
+    {
+      id: orderItemsId,
+      name: "order_items",
+      color: "#a78bfa",
+      x: 210,
+      y: 350,
+      columns: [
+        { id: uid(), name: "id", type: "bigint", key: "PK" },
+        {
+          id: uid(),
+          name: "order_id",
+          type: "bigint",
+          key: "FK",
+          refTableId: ordersId,
+          refColumnId: orderPk,
+          cardinality: "1:N",
+          onDelete: "CASCADE",
+        },
+        {
+          id: uid(),
+          name: "product_id",
+          type: "bigint",
+          key: "FK",
+          refTableId: productsId,
+          refColumnId: productPk,
+          cardinality: "1:N",
+          onDelete: "RESTRICT",
+        },
+        { id: uid(), name: "quantity", type: "integer", key: "" },
+        { id: uid(), name: "unit_price", type: "decimal(8,2)", key: "" },
+      ],
+    },
+    {
+      id: paymentsId,
+      name: "payments",
+      color: "#34d399",
+      x: 750,
+      y: 50,
+      columns: [
+        { id: uid(), name: "id", type: "bigint", key: "PK" },
+        {
+          id: uid(),
+          name: "order_id",
+          type: "bigint",
+          key: "FK",
+          refTableId: ordersId,
+          refColumnId: orderPk,
+          cardinality: "1:1",
+          onDelete: "CASCADE",
+        },
+        { id: uid(), name: "provider", type: "varchar(255)", key: "" },
+        { id: uid(), name: "transaction_ref", type: "varchar(255)", key: "" },
+        { id: uid(), name: "status", type: "varchar(255)", key: "" },
+      ],
+    },
+    {
+      id: shipmentsId,
+      name: "shipments",
+      color: "#f43f5e",
+      x: 750,
+      y: 350,
+      columns: [
+        { id: uid(), name: "id", type: "bigint", key: "PK" },
+        {
+          id: uid(),
+          name: "order_id",
+          type: "bigint",
+          key: "FK",
+          refTableId: ordersId,
+          refColumnId: orderPk,
+          cardinality: "1:1",
+          onDelete: "CASCADE",
+        },
+        { id: uid(), name: "tracking_number", type: "varchar(255)", key: "" },
+        { id: uid(), name: "carrier", type: "varchar(255)", key: "" },
+        { id: uid(), name: "shipped_at", type: "timestamp", key: "" },
+      ],
+    },
+  ];
+}
+
 export function SchemaPlayground() {
   const [tables, setTables] = useState<PgTable[]>(presetOneToMany);
+  const [isExportOpen, setIsExportOpen] = useState(false);
   const canvasRef = useRef<HTMLDivElement>(null);
   const drag = useRef<{ id: string; dx: number; dy: number } | null>(null);
 
@@ -171,6 +515,7 @@ export function SchemaPlayground() {
             color: t.color,
             dashed: true,
             glow: true,
+            cardinality: c.cardinality || "1:N",
           });
         }
       }
@@ -315,32 +660,67 @@ export function SchemaPlayground() {
           transition={{ duration: 0.5, delay: 0.1 }}
           className="mt-6 flex flex-wrap items-center gap-2 rounded-2xl border border-slate-800 bg-slate-900 p-2.5"
         >
+          {/* New Table */}
           <button
             onClick={addTable}
-            className="flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-[12.5px] font-bold text-slate-950 transition-all hover:-translate-y-px active:scale-95 cursor-pointer"
+            className="flex items-center gap-1.5 rounded-full bg-white px-3.5 py-1.5 text-[12px] font-bold text-slate-950 transition-all hover:-translate-y-px active:scale-95 cursor-pointer shadow-sm"
           >
             <Plus size={14} /> New Table
           </button>
+
+          {/* Presets Group */}
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="font-mono text-[10px] text-slate-400 uppercase tracking-wider pl-1 font-semibold">
+              Presets:
+            </span>
+            <button
+              onClick={() => setTables(presetOneToMany())}
+              className="flex items-center gap-1.5 rounded-full border border-slate-700 bg-slate-800/60 px-3 py-1.5 text-[11.5px] font-medium text-slate-300 transition-colors hover:border-sky-500/50 hover:text-white cursor-pointer"
+            >
+              <Sparkles size={12} className="text-sky-400" /> 1-to-Many
+            </button>
+            <button
+              onClick={() => setTables(presetManyToMany())}
+              className="flex items-center gap-1.5 rounded-full border border-slate-700 bg-slate-800/60 px-3 py-1.5 text-[11.5px] font-medium text-slate-300 transition-colors hover:border-violet-500/50 hover:text-white cursor-pointer"
+            >
+              <Sparkles size={12} className="text-violet-400" /> Many-to-Many
+            </button>
+            <button
+              onClick={() => setTables(presetMultiTenantSaaS())}
+              className="flex items-center gap-1.5 rounded-full border border-slate-700 bg-slate-800/60 px-3 py-1.5 text-[11.5px] font-medium text-slate-300 transition-colors hover:border-amber-500/50 hover:text-white cursor-pointer"
+            >
+              <Sparkles size={12} className="text-amber-400" /> Multi-Tenant SaaS
+            </button>
+            <button
+              onClick={() => setTables(presetPolymorphicPlatform())}
+              className="flex items-center gap-1.5 rounded-full border border-slate-700 bg-slate-800/60 px-3 py-1.5 text-[11.5px] font-medium text-slate-300 transition-colors hover:border-rose-500/50 hover:text-white cursor-pointer"
+            >
+              <Sparkles size={12} className="text-rose-400" /> Polymorphic
+            </button>
+            <button
+              onClick={() => setTables(presetEnterpriseEcommerce())}
+              className="flex items-center gap-1.5 rounded-full border border-slate-700 bg-slate-800/60 px-3 py-1.5 text-[11.5px] font-medium text-slate-300 transition-colors hover:border-emerald-500/50 hover:text-white cursor-pointer"
+            >
+              <Sparkles size={12} className="text-emerald-400" /> E-Commerce
+            </button>
+          </div>
+
+          {/* Export Code Modal Trigger */}
           <button
-            onClick={() => setTables(presetOneToMany())}
-            className="flex items-center gap-1.5 rounded-full border border-slate-700 px-4 py-2 text-[12.5px] font-medium text-slate-300 transition-colors hover:border-slate-600 hover:text-white cursor-pointer"
+            onClick={() => setIsExportOpen(true)}
+            className="flex items-center gap-1.5 rounded-full border border-sky-500/50 bg-sky-500/15 px-3.5 py-1.5 text-[12px] font-bold text-sky-300 transition-all hover:bg-sky-500/25 cursor-pointer shadow-sm"
           >
-            <Sparkles size={13} className="text-sky-400" /> Preset: 1-to-Many
-          </button>
-          <button
-            onClick={() => setTables(presetManyToMany())}
-            className="flex items-center gap-1.5 rounded-full border border-slate-700 px-4 py-2 text-[12.5px] font-medium text-slate-300 transition-colors hover:border-slate-600 hover:text-white cursor-pointer"
-          >
-            <Sparkles size={13} className="text-violet-400" /> Preset: Many-to-Many
-          </button>
-          <button
-            onClick={() => setTables([])}
-            className="flex items-center gap-1.5 rounded-full border border-slate-700 px-4 py-2 text-[12.5px] font-medium text-slate-300 transition-colors hover:border-rose-500/40 hover:text-rose-400 cursor-pointer"
-          >
-            <RotateCcw size={13} /> Clear
+            <Code2 size={13} /> Export Code
           </button>
 
-          <span className="ml-auto hidden items-center gap-4 pr-2 font-mono text-[11px] text-slate-400 sm:flex">
+          <button
+            onClick={() => setTables([])}
+            className="flex items-center gap-1.5 rounded-full border border-slate-700 px-3 py-1.5 text-[11.5px] font-medium text-slate-300 transition-colors hover:border-rose-500/40 hover:text-rose-400 cursor-pointer"
+          >
+            <RotateCcw size={12} /> Clear
+          </button>
+
+          <span className="ml-auto hidden items-center gap-4 pr-2 font-mono text-[11px] text-slate-400 lg:flex">
             <span>{tables.length} tables</span>
             <span className="flex items-center gap-1">
               <Link2 size={11} className="text-sky-400" /> {relationCount} relations
@@ -447,6 +827,13 @@ export function SchemaPlayground() {
           ))}
         </div>
       </div>
+
+      {/* Multi-Target Code Export Modal */}
+      <CodeExportModal
+        isOpen={isExportOpen}
+        onClose={() => setIsExportOpen(false)}
+        tables={tables}
+      />
     </div>
   );
 }
@@ -613,46 +1000,81 @@ function PlaygroundTableCard({
               </div>
 
               {c.key === "FK" && (
-                <div className="mb-1 mt-1.5 flex items-center gap-1.5 pl-[60px]">
-                  <Link2 size={10} className="shrink-0 text-sky-400" />
-                  <select
-                    value={c.refTableId ?? ""}
-                    onChange={(e) => {
-                      const tt = allTables.find((x) => x.id === e.target.value);
-                      updateColumn(t.id, c.id, {
-                        refTableId: tt?.id,
-                        refColumnId:
-                          tt?.columns.find((cc) => cc.key === "PK")?.id ??
-                          tt?.columns[0]?.id,
-                      });
-                    }}
-                    className="min-w-0 flex-1 cursor-pointer rounded border border-slate-700 bg-slate-900 px-1.5 py-1 font-mono text-[10.5px] text-slate-300 outline-none"
-                  >
-                    {allTables.filter((x) => x.id !== t.id).length === 0 && (
-                      <option value="" className="bg-slate-900">no target</option>
-                    )}
-                    {allTables
-                      .filter((x) => x.id !== t.id)
-                      .map((x) => (
-                        <option key={x.id} value={x.id} className="bg-slate-900">
-                          {x.name}
+                <div className="mb-1.5 mt-1.5 flex flex-col gap-1.5 pl-[58px]">
+                  <div className="flex items-center gap-1.5">
+                    <Link2 size={10} className="shrink-0 text-sky-400" />
+                    <select
+                      value={c.refTableId ?? ""}
+                      onChange={(e) => {
+                        const tt = allTables.find((x) => x.id === e.target.value);
+                        updateColumn(t.id, c.id, {
+                          refTableId: tt?.id,
+                          refColumnId:
+                            tt?.columns.find((cc) => cc.key === "PK")?.id ??
+                            tt?.columns[0]?.id,
+                        });
+                      }}
+                      className="min-w-0 flex-1 cursor-pointer rounded border border-slate-700 bg-slate-900 px-1.5 py-1 font-mono text-[10.5px] text-slate-300 outline-none"
+                    >
+                      {allTables.filter((x) => x.id !== t.id).length === 0 && (
+                        <option value="" className="bg-slate-900">no target</option>
+                      )}
+                      {allTables
+                        .filter((x) => x.id !== t.id)
+                        .map((x) => (
+                          <option key={x.id} value={x.id} className="bg-slate-900">
+                            {x.name}
+                          </option>
+                        ))}
+                    </select>
+
+                    <select
+                      value={c.refColumnId ?? ""}
+                      onChange={(e) =>
+                        updateColumn(t.id, c.id, { refColumnId: e.target.value })
+                      }
+                      className="min-w-0 flex-1 cursor-pointer rounded border border-slate-700 bg-slate-900 px-1.5 py-1 font-mono text-[10.5px] text-slate-300 outline-none"
+                    >
+                      {(refTable?.columns ?? []).map((cc) => (
+                        <option key={cc.id} value={cc.id} className="bg-slate-900">
+                          .{cc.name}
                         </option>
                       ))}
-                  </select>
+                    </select>
+                  </div>
 
-                  <select
-                    value={c.refColumnId ?? ""}
-                    onChange={(e) =>
-                      updateColumn(t.id, c.id, { refColumnId: e.target.value })
-                    }
-                    className="min-w-0 flex-1 cursor-pointer rounded border border-slate-700 bg-slate-900 px-1.5 py-1 font-mono text-[10.5px] text-slate-300 outline-none"
-                  >
-                    {(refTable?.columns ?? []).map((cc) => (
-                      <option key={cc.id} value={cc.id} className="bg-slate-900">
-                        .{cc.name}
-                      </option>
-                    ))}
-                  </select>
+                  {/* Cardinality & On Delete Constraint Controls */}
+                  <div className="flex items-center gap-1.5 text-[9.5px] font-mono">
+                    <span className="text-slate-400">Card:</span>
+                    <select
+                      value={c.cardinality || "1:N"}
+                      onChange={(e) =>
+                        updateColumn(t.id, c.id, {
+                          cardinality: e.target.value as "1:N" | "1:1" | "N:N",
+                        })
+                      }
+                      className="cursor-pointer rounded border border-slate-700 bg-slate-800 px-1 py-0.5 text-sky-300 outline-none font-bold"
+                    >
+                      <option value="1:N">1:N</option>
+                      <option value="1:1">1:1</option>
+                      <option value="N:N">N:N</option>
+                    </select>
+
+                    <span className="ml-1 text-slate-400">OnDel:</span>
+                    <select
+                      value={c.onDelete || "CASCADE"}
+                      onChange={(e) =>
+                        updateColumn(t.id, c.id, {
+                          onDelete: e.target.value as "CASCADE" | "RESTRICT" | "SET NULL",
+                        })
+                      }
+                      className="cursor-pointer rounded border border-slate-700 bg-slate-800 px-1 py-0.5 text-amber-300 outline-none font-bold"
+                    >
+                      <option value="CASCADE">CASCADE</option>
+                      <option value="RESTRICT">RESTRICT</option>
+                      <option value="SET NULL">SET NULL</option>
+                    </select>
+                  </div>
                 </div>
               )}
             </div>

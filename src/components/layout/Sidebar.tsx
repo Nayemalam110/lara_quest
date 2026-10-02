@@ -12,9 +12,12 @@ import {
   Search,
   Brain,
   Bookmark,
+  BookOpen,
+  Award,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { modules, moduleProgress } from "@/data/mockData";
+import { CONCEPT_FLASHCARDS } from "@/data/flashcardsData";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useProgressStore } from "@/store/useProgressStore";
 import { useStudyToolsStore } from "@/store/useStudyToolsStore";
@@ -38,7 +41,9 @@ export function Sidebar() {
     { label: "Learn", path: "/dashboard", icon: GraduationCap },
     { label: "Roadmap", path: "/roadmap", icon: Map },
     { label: "Schema Playground", path: "/playground", icon: Boxes },
-    { label: "Profile & Badges", path: "/profile", icon: Trophy },
+    { label: "Rosetta Stone", path: "/cheatsheet", icon: BookOpen },
+    { label: "Leaderboard", path: "/leaderboard", icon: Trophy },
+    { label: "Profile & Badges", path: "/profile", icon: Award },
   ];
 
   return (
@@ -122,7 +127,7 @@ export function Sidebar() {
             <span>Concept Cards</span>
           </span>
           <span className="rounded-full bg-indigo-500/20 px-2 py-0.5 font-mono text-[10px] font-bold text-indigo-300">
-            {masteredCardsCount}/12
+            {masteredCardsCount}/{CONCEPT_FLASHCARDS.length}
           </span>
         </button>
 
@@ -143,14 +148,14 @@ export function Sidebar() {
       </div>
 
       {/* Track Progress (Modules List) */}
-      <div className="mt-6 px-2 font-mono text-[10.5px] uppercase tracking-[0.16em] text-slate-400 font-semibold flex items-center justify-between">
+      <div className="mt-4 px-2 font-mono text-[10.5px] uppercase tracking-[0.16em] text-slate-400 font-semibold flex items-center justify-between shrink-0">
         <span>Curriculum Progress</span>
         <span className="text-slate-500 text-[10px]">
           {stats.completedCount}/{stats.totalLessons}
         </span>
       </div>
 
-      <div className="mt-2.5 flex flex-col gap-1 overflow-y-auto pr-1">
+      <div className="mt-2 flex-1 min-h-0 flex flex-col gap-1 overflow-y-auto pr-1 custom-scrollbar">
         {modules.map((m) => {
           const completedLessonIds = (stats.completedLessonIds || []).map(String);
           const p = moduleProgress(m, completedLessonIds);

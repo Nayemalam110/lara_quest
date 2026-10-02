@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { motion } from "framer-motion";
 import {
   Trophy,
@@ -9,6 +9,9 @@ import {
   Shield,
   RotateCcw,
   Sparkles,
+  ShieldCheck,
+  Plus,
+  CheckCircle2,
 } from "lucide-react";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useProgressStore } from "@/store/useProgressStore";
@@ -16,10 +19,12 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { ProgressBar } from "@/components/ui/ProgressBar";
+import { GraduationCertificateModal } from "@/components/certificate/GraduationCertificateModal";
 
 export function ProfilePage() {
   const { profile } = useAuthStore();
-  const { achievements, getStats } = useProgressStore();
+  const { achievements, getStats, equipStreakFreeze } = useProgressStore();
+  const [isCertOpen, setIsCertOpen] = useState(false);
 
   const stats = getStats();
   const earnedKeys = stats.earnedAchievementKeys || [];
@@ -88,7 +93,17 @@ export function ProfilePage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <Button
+              variant="brand"
+              size="sm"
+              onClick={() => setIsCertOpen(true)}
+              className="text-xs font-bold shadow-md"
+            >
+              <Award size={13} />
+              <span>Graduation Certificate 🎓</span>
+            </Button>
+
             <Button
               variant="secondary"
               size="sm"
@@ -164,6 +179,51 @@ export function ProfilePage() {
         </Card>
       </div>
 
+      {/* Streak Protection Armor Card */}
+      <div className="card-sheen relative overflow-hidden rounded-3xl border border-slate-800 bg-[#111827]/90 p-5 sm:p-6 shadow-xl backdrop-blur-xl">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            <div className="grid h-12 w-12 place-items-center rounded-2xl border border-sky-500/30 bg-sky-500/10 text-sky-400 shadow-md">
+              <ShieldCheck size={24} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-xs font-bold uppercase tracking-wider text-sky-400">
+                  Streak Protection Armor
+                </span>
+                <span className="rounded-full border border-sky-500/30 bg-sky-500/10 px-2 py-0.2 font-mono text-[10px] font-bold text-sky-300">
+                  AUTO-CONSUME ON MISS
+                </span>
+              </div>
+              <h3 className="font-display text-lg font-bold text-white mt-0.5">
+                {stats.streakFreezes ?? 1} of 2 Streak Freezes Equipped 🧊
+              </h3>
+              <p className="text-xs text-slate-300 mt-1 max-w-xl leading-relaxed">
+                If life gets busy and you cannot complete a lesson for a day, your streak freeze automatically activates, preserving your consecutive day counter without resetting to zero.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            {(stats.streakFreezes ?? 1) < 2 ? (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => equipStreakFreeze()}
+                className="text-xs border-sky-500/30 text-sky-300 hover:bg-sky-500/10"
+              >
+                <Plus size={13} />
+                <span>Equip Another Freeze (Max 2)</span>
+              </Button>
+            ) : (
+              <div className="flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 font-mono text-xs font-semibold text-emerald-400">
+                <CheckCircle2 size={13} /> Maximum Protection Active
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
       {/* Badges & Achievements Grid */}
       <div className="card-sheen relative overflow-hidden rounded-3xl border border-slate-800 bg-[#111827]/90 p-6 sm:p-8 backdrop-blur-xl shadow-xl">
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
@@ -229,6 +289,12 @@ export function ProfilePage() {
           })}
         </div>
       </div>
+
+      {/* Graduation Certificate Modal */}
+      <GraduationCertificateModal
+        isOpen={isCertOpen}
+        onClose={() => setIsCertOpen(false)}
+      />
     </motion.div>
   );
 }

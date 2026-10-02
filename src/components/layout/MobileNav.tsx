@@ -1,6 +1,6 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Flame, Zap, Boxes, GraduationCap, Trophy, Map, Search } from "lucide-react";
+import { Flame, Zap, Boxes, GraduationCap, Trophy, Map, Search, BookOpen, Award } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useProgressStore } from "@/store/useProgressStore";
@@ -65,7 +65,9 @@ export function MobileBottomNav() {
     { label: "Learn", path: "/dashboard", icon: GraduationCap },
     { label: "Roadmap", path: "/roadmap", icon: Map },
     { label: "Playground", path: "/playground", icon: Boxes },
-    { label: "Profile", path: "/profile", icon: Trophy },
+    { label: "Rosetta", path: "/cheatsheet", icon: BookOpen },
+    { label: "Leaders", path: "/leaderboard", icon: Trophy },
+    { label: "Profile", path: "/profile", icon: Award },
   ];
 
   return (

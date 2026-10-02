@@ -46,12 +46,16 @@ export interface ProgressStoreState {
     bookmarkedLessonIds: string[];
     lessonNotes: Record<string, string>;
     flashcardMastery: Record<string, 'learning' | 'mastered'>;
+    dailyQuestClaimedDate: string;
+    isDailyQuestClaimed: boolean;
   };
   addXp: (amount: number, reason?: string) => void;
   completeLesson: (moduleId: string | number, lessonId: string | number, xpReward?: number) => void;
   toggleBookmark: (lessonId: string) => void;
   saveLessonNote: (lessonId: string, note: string) => void;
   rateFlashcard: (cardId: string, isMastered: boolean) => void;
+  claimDailyQuest: () => boolean;
+  equipStreakFreeze: () => boolean;
   clearNotification: () => void;
 }
 
@@ -78,6 +82,11 @@ export const useProgressStore = create<ProgressStoreState>((set, get) => ({
     const completedCount = completedLessonIds.length;
     const overallProgressPercent = Math.min(100, Math.round((completedCount / (totalLessons || 1)) * 100));
 
+    const streakFreezes = profile?.streakFreezes ?? 1;
+    const dailyQuestClaimedDate = profile?.dailyQuestClaimedDate || '';
+    const todayStr = new Date().toISOString().split('T')[0];
+    const isDailyQuestClaimed = dailyQuestClaimedDate === todayStr;
+
     return {
       xp,
       streak,
@@ -88,10 +97,12 @@ export const useProgressStore = create<ProgressStoreState>((set, get) => ({
       totalLessons,
       completedCount,
       overallProgressPercent,
-      streakFreezes: profile?.streakFreezes ?? 1,
+      streakFreezes,
       bookmarkedLessonIds,
       lessonNotes,
       flashcardMastery,
+      dailyQuestClaimedDate,
+      isDailyQuestClaimed,
     };
   },
 
@@ -231,10 +242,10 @@ export const useProgressStore = create<ProgressStoreState>((set, get) => ({
               },
               { onConflict: 'user_id,module_id' }
             )
-            .then(() => {});
+            .then(() => { });
 
           // Call RPC record_activity if present
-          supabase.rpc('record_activity', { p_user_id: authState.user.id }).catch(() => {});
+          supabase.rpc('record_activity', { p_user_id: authState.user.id }).catch(() => { });
         } catch (e) {
           console.warn('[LaraQuest] Supabase progress sync notice:', e);
         }
@@ -307,6 +318,55 @@ export const useProgressStore = create<ProgressStoreState>((set, get) => ({
     if (isMastered) {
       get().addXp(15, 'Mastered Concept Flashcard 🧠');
     }
+  },
+
+  // Claim Daily Quest Bonus (+50 XP)
+  claimDailyQuest: () => {
+    const authState = useAuthStore.getState();
+    const profile = authState.profile;
+    if (!profile) return false;
+
+    const todayStr = new Date().toISOString().split('T')[0];
+    if (profile.dailyQuestClaimedDate === todayStr) {
+      return false;
+    }
+
+    const updatedProfile = {
+      ...profile,
+      dailyQuestClaimedDate: todayStr,
+      lastActivityDate: todayStr,
+    };
+    authState.updateProfile(updatedProfile);
+
+    get().addXp(50, 'Daily Quest Completed! 🎯');
+    triggerConfetti();
+    return true;
+  },
+
+  // Equip or replenish a streak freeze protection item
+  equipStreakFreeze: () => {
+    const authState = useAuthStore.getState();
+    const profile = authState.profile;
+    if (!profile) return false;
+
+    const currentFreezes = profile.streakFreezes ?? 1;
+    if (currentFreezes >= 2) return false;
+
+    const updatedProfile = {
+      ...profile,
+      streakFreezes: currentFreezes + 1,
+    };
+    authState.updateProfile(updatedProfile);
+
+    set({
+      recentNotification: {
+        type: 'achievement',
+        title: 'Streak Freeze Equipped 🧊',
+        message: 'Your daily streak flame is protected for 1 offline day.',
+      },
+    });
+    setTimeout(() => set({ recentNotification: null }), 3500);
+    return true;
   },
 
   // Clear notification toast

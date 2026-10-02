@@ -47,7 +47,7 @@ export function RoadmapPage() {
               Curriculum Roadmap
             </h1>
             <p className="text-xs font-mono text-slate-300">
-              Structured 4-track journey from database schema to full REST API mastery
+              Structured 6-track, 24-module journey from database schema to full REST API mastery
             </p>
           </div>
         </div>
@@ -81,6 +81,8 @@ export function RoadmapPage() {
             { id: "track-2", label: "Track 2: Eloquent Engine", color: "#a78bfa" },
             { id: "track-3", label: "Track 3: REST API Mastery", color: "#f43f5e" },
             { id: "track-4", label: "Track 4: Advanced & Capstone", color: "#34d399" },
+            { id: "track-5", label: "Track 5: Real-World Architecture", color: "#fbbf24" },
+            { id: "track-6", label: "Track 6: Database Mastery & Performance", color: "#06b6d4" },
           ].map((t) => (
             <button
               key={t.id}
