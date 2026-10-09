@@ -12,7 +12,7 @@ import {
   Download,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { INITIAL_MODULES } from "@/lib/constants";
+import { allLessons } from "@/data/mockData";
 import { useProgressStore } from "@/store/useProgressStore";
 
 interface LessonNotesDrawerProps {
@@ -37,14 +37,10 @@ export function LessonNotesDrawer({
   );
 
   // Map bookmarked IDs to actual lesson objects
-  const bookmarkedLessons = INITIAL_MODULES.flatMap((m) =>
-    (m.lessons || []).filter((l) => bookmarkedLessonIds.includes(l.id))
-  );
+  const bookmarkedLessons = allLessons.filter((l) => bookmarkedLessonIds.includes(l.id));
 
   const allNotesList = Object.entries(lessonNotes || {}).map(([lessonId, text]) => {
-    const lesson = INITIAL_MODULES.flatMap((m) => m.lessons || []).find(
-      (l) => l.id === lessonId
-    );
+    const lesson = allLessons.find((l) => l.id === lessonId);
     return {
       lessonId,
       title: lesson?.title || `Lesson ${lessonId}`,

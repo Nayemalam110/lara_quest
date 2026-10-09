@@ -41,5 +41,5 @@ export function LessonPage() {
     );
   }
 
-  return <LessonView lesson={lesson} module={module} />;
+  return <LessonView lesson={lesson} module={module as any} />;
 }

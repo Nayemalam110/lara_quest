@@ -1,8 +1,10 @@
 import confetti from "canvas-confetti";
+import { soundFx } from "./soundFx";
 
 const BRAND = ["#38bdf8", "#a78bfa", "#f43f5e", "#fbbf24", "#34d399"];
 
 export function popBurst(origin?: { x: number; y: number }) {
+  soundFx.playSuccessChime();
   confetti({
     particleCount: 70,
     spread: 75,
@@ -16,6 +18,7 @@ export function popBurst(origin?: { x: number; y: number }) {
 }
 
 export function moduleFanfare() {
+  soundFx.playLevelUpFanfare();
   const end = Date.now() + 900;
   const frame = () => {
     confetti({

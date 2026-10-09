@@ -3,6 +3,7 @@ import { Outlet } from "react-router-dom";
 import { BackgroundFX } from "./BackgroundFX";
 import { Sidebar } from "./Sidebar";
 import { MobileTopBar, MobileBottomNav } from "./MobileNav";
+import { OfflineBanner } from "./OfflineBanner";
 import { Toast } from "../ui/Toast";
 import { CommandPalette } from "../navigation/CommandPalette";
 import { ConceptFlashcardsModal } from "../study/ConceptFlashcardsModal";
@@ -45,6 +46,9 @@ export function Layout() {
 
   return (
     <div className="relative min-h-screen font-display text-slate-100">
+      {/* Offline network connectivity monitor banner */}
+      <OfflineBanner />
+
       {/* Dynamic atmospheric canvas */}
       <BackgroundFX />
 

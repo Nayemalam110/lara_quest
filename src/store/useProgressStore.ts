@@ -245,7 +245,7 @@ export const useProgressStore = create<ProgressStoreState>((set, get) => ({
             .then(() => { });
 
           // Call RPC record_activity if present
-          supabase.rpc('record_activity', { p_user_id: authState.user.id }).catch(() => { });
+          (supabase.rpc('record_activity', { p_user_id: authState.user.id }) as any).then(() => {}).catch(() => { });
         } catch (e) {
           console.warn('[LaraQuest] Supabase progress sync notice:', e);
         }

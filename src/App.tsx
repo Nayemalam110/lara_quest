@@ -10,6 +10,8 @@ import { RoadmapPage } from "./pages/RoadmapPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { PlaygroundPage } from "./pages/PlaygroundPage";
 import { LessonPage } from "./pages/LessonPage";
+import { CheatsheetPage } from "./pages/CheatsheetPage";
+import { LeaderboardPage } from "./pages/LeaderboardPage";
 
 export function App() {
   const { initAuth } = useAuthStore();
@@ -36,6 +38,8 @@ export function App() {
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/roadmap" element={<RoadmapPage />} />
           <Route path="/playground" element={<PlaygroundPage />} />
+          <Route path="/cheatsheet" element={<CheatsheetPage />} />
+          <Route path="/leaderboard" element={<LeaderboardPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/lesson/:lessonId" element={<LessonPage />} />
         </Route>

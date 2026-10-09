@@ -16,7 +16,10 @@ import {
   Clock,
   Sparkles,
   Layers,
+  Wifi,
+  WifiOff,
 } from 'lucide-react';
+import { soundFx } from '@/lib/soundFx';
 import { CodeBlock } from '@/components/ui/CodeBlock';
 import { Button } from '@/components/ui/Button';
 
@@ -212,8 +215,16 @@ export function ApiSimulatorSandbox() {
   const [useToken, setUseToken] = useState(activePreset.requiresAuth);
   const [requestBody, setRequestBody] = useState(activePreset.defaultBody || '');
   const [loading, setLoading] = useState(false);
+  const [networkProfile, setNetworkProfile] = useState<'fast' | '4g' | '3g' | 'offline'>('fast');
   const [outputTab, setOutputTab] = useState<'json' | 'sql' | 'dio' | 'headers'>('json');
   const [copiedDio, setCopiedDio] = useState(false);
+
+  const NETWORK_PROFILES = {
+    fast: { label: 'Localhost (35ms)', delayMs: 35, icon: '⚡' },
+    '4g': { label: '4G LTE (180ms)', delayMs: 180, icon: '📶' },
+    '3g': { label: 'Flaky 3G (750ms)', delayMs: 750, icon: '🐢' },
+    offline: { label: 'Offline / Timeout', delayMs: 650, icon: '🚫' },
+  };
 
   // Switch preset
   const handleSelectPreset = (index: number) => {
@@ -227,20 +238,39 @@ export function ApiSimulatorSandbox() {
 
   // Run simulated request
   const handleSendRequest = () => {
+    soundFx.playClickTick();
     setLoading(true);
+    const delay = NETWORK_PROFILES[networkProfile].delayMs;
     setTimeout(() => {
       setLoading(false);
-    }, 280);
+      if (networkProfile !== 'offline' && (!activePreset.requiresAuth || useToken)) {
+        soundFx.playSuccessChime();
+      }
+    }, delay);
   };
 
-  // Determine actual response if unauthenticated
-  const isAuthBlocked = activePreset.requiresAuth && !useToken;
-  const currentStatusCode = isAuthBlocked ? 401 : activePreset.responseStatus;
-  const currentStatusText = isAuthBlocked ? 'Unauthorized' : activePreset.responseStatusText;
-  const currentResponseBody = isAuthBlocked
+  // Determine actual response if unauthenticated or offline
+  const isOffline = networkProfile === 'offline';
+  const isAuthBlocked = activePreset.requiresAuth && !useToken && !isOffline;
+  
+  const currentStatusCode = isOffline ? 0 : isAuthBlocked ? 401 : activePreset.responseStatus;
+  const currentStatusText = isOffline
+    ? 'DioExceptionType.connectionTimeout'
+    : isAuthBlocked
+    ? 'Unauthorized'
+    : activePreset.responseStatusText;
+
+  const currentResponseBody = isOffline
+    ? {
+        dio_error: 'DioExceptionType.connectionTimeout',
+        message: 'The connection errored: [SocketException: OS Error: Network is unreachable, errno = 101]',
+        tip_for_flutter: 'Wrap in on DioException catch and verify network status with connectivity_plus.',
+      }
+    : isAuthBlocked
     ? { message: 'Unauthenticated. Bearer token missing in Authorization header.' }
     : activePreset.responseBody;
-  const currentSqlQueries = isAuthBlocked ? [] : activePreset.sqlQueries;
+
+  const currentSqlQueries = isOffline || isAuthBlocked ? [] : activePreset.sqlQueries;
 
   // Generated Flutter Dio code
   const generatedDioCode = `// lib/services/api_service.dart
@@ -309,24 +339,51 @@ Future<void> executeRequest() async {
             </div>
           </div>
 
-          {/* Token Switch */}
-          <label className="flex items-center gap-2 cursor-pointer font-mono text-xs text-slate-300 select-none">
-            <input
-              type="checkbox"
-              checked={useToken}
-              onChange={(e) => setUseToken(e.target.checked)}
-              className="rounded border-slate-700 bg-slate-800 text-sky-500 focus:ring-0"
-            />
-            {useToken ? (
-              <span className="flex items-center gap-1 text-emerald-400 font-bold">
-                <ShieldCheck size={14} /> Bearer Token Attached
-              </span>
-            ) : (
-              <span className="flex items-center gap-1 text-slate-400">
-                <ShieldAlert size={14} /> No Token (Public)
-              </span>
-            )}
-          </label>
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Latency / Network Profile Selector */}
+            <div className="flex items-center gap-1.5">
+              <span className="font-mono text-[11px] text-slate-400">Latency:</span>
+              {(['fast', '4g', '3g', 'offline'] as const).map((key) => {
+                const prof = NETWORK_PROFILES[key];
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setNetworkProfile(key)}
+                    className={`rounded-lg px-2.5 py-1 font-mono text-[11px] font-semibold transition cursor-pointer ${
+                      networkProfile === key
+                        ? key === 'offline'
+                          ? 'border border-rose-500/50 bg-rose-500/20 text-rose-300'
+                          : 'border border-amber-500/50 bg-amber-500/20 text-amber-300'
+                        : 'border border-slate-800 bg-slate-900/60 text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    <span className="mr-1">{prof.icon}</span>
+                    <span>{prof.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Token Switch */}
+            <label className="flex items-center gap-2 cursor-pointer font-mono text-xs text-slate-300 select-none">
+              <input
+                type="checkbox"
+                checked={useToken}
+                onChange={(e) => setUseToken(e.target.checked)}
+                className="rounded border-slate-700 bg-slate-800 text-sky-500 focus:ring-0"
+              />
+              {useToken ? (
+                <span className="flex items-center gap-1 text-emerald-400 font-bold">
+                  <ShieldCheck size={14} /> Bearer Token Attached
+                </span>
+              ) : (
+                <span className="flex items-center gap-1 text-slate-400">
+                  <ShieldAlert size={14} /> No Token (Public)
+                </span>
+              )}
+            </label>
+          </div>
         </div>
 
         {/* HTTP URL Bar */}

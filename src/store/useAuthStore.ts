@@ -39,6 +39,7 @@ export interface UserProfile {
   bookmarkedLessonIds?: string[];
   lessonNotes?: Record<string, string>;
   flashcardMastery?: Record<string, 'learning' | 'mastered'>;
+  dailyQuestClaimedDate?: string;
 }
 
 export interface AuthState {
@@ -86,6 +87,7 @@ export function normalizeProfile(dbRow: any, userSession?: UserSession | null): 
     bookmarkedLessonIds: dbRow?.bookmarked_lesson_ids || localCached?.bookmarkedLessonIds || [],
     lessonNotes: dbRow?.lesson_notes || localCached?.lessonNotes || {},
     flashcardMastery: dbRow?.flashcard_mastery || localCached?.flashcardMastery || {},
+    dailyQuestClaimedDate: dbRow?.daily_quest_claimed_date || localCached?.dailyQuestClaimedDate,
   };
 }
 

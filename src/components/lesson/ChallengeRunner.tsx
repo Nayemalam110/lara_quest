@@ -18,6 +18,9 @@ import {
   Bug,
   Terminal as TerminalIcon,
   Layers,
+  Lightbulb,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Challenge, Lesson } from "@/types";
@@ -56,6 +59,19 @@ export function ChallengeRunner({ lesson, onSuccess }: ChallengeRunnerProps) {
   const meta = TYPE_META[c.type] || TYPE_META.mcq;
   const Icon = meta.icon;
 
+  const [showHint, setShowHint] = useState(false);
+
+  const hintText = useMemo(() => {
+    const rawHints = (c as any).hints;
+    if (rawHints && rawHints.length > 0) return rawHints[0];
+    if (lesson.flutterParallel?.concept) {
+      return `Think of the Flutter parallel: ${lesson.flutterParallel.concept}. ${lesson.flutterParallel.explanation.split(".")[0]}.`;
+    }
+    return c.explanation
+      ? `${c.explanation.split(".")[0]}.`
+      : "Carefully review the lesson mental model diagram above.";
+  }, [c, lesson]);
+
   return (
     <div
       className={cn(
@@ -93,10 +109,33 @@ export function ChallengeRunner({ lesson, onSuccess }: ChallengeRunnerProps) {
       </div>
 
       <div className="p-5">
-        <p className="mb-4 text-[15px] font-medium leading-snug text-white">
+        <p className="mb-2 text-[15px] font-medium leading-snug text-white">
           <Target size={14} className="mr-1.5 inline-block -translate-y-px text-slate-400" />
           {c.question}
         </p>
+
+        {/* Progressive Clue / Hint Drawer */}
+        <div className="mb-4">
+          <button
+            type="button"
+            onClick={() => setShowHint((prev) => !prev)}
+            className="inline-flex items-center gap-1.5 text-xs font-mono text-amber-400/90 hover:text-amber-300 transition-colors cursor-pointer"
+          >
+            <Lightbulb size={13} className="text-amber-400" />
+            <span>{showHint ? "Hide Hint" : "Need a Hint?"}</span>
+            {showHint ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+          </button>
+
+          {showHint && (
+            <div className="mt-2 flex items-start gap-2.5 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs leading-relaxed text-amber-200/90 animate-in fade-in duration-200">
+              <span className="text-base select-none">💡</span>
+              <div className="flex-1">
+                <strong className="text-amber-300 font-semibold block mb-0.5">Architect Clue:</strong>
+                <span>{hintText}</span>
+              </div>
+            </div>
+          )}
+        </div>
 
         {c.type === "mcq" && (
           <McqChallenge lesson={lesson} solved={solved} onSuccess={onSuccess} />

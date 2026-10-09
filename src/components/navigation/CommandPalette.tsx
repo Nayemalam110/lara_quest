@@ -16,7 +16,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { INITIAL_MODULES } from "@/lib/constants";
+import { modules } from "@/data/mockData";
 import { useProgressStore } from "@/store/useProgressStore";
 
 interface CommandPaletteProps {
@@ -123,7 +123,7 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
     });
 
     // Modules and Lessons
-    INITIAL_MODULES.forEach((mod) => {
+    modules.forEach((mod) => {
       (mod.lessons || []).forEach((les) => {
         // Lesson item
         items.push({

@@ -1,0 +1,19 @@
+{
+  "short_name": "LaraQuest",
+  "name": "LaraQuest: Laravel for Flutter Devs",
+  "description": "Master Laravel REST APIs and Relational Databases from a Flutter/Dart perspective.",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "192x192 512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/dashboard",
+  "background_color": "#07080c",
+  "theme_color": "#0b0f19",
+  "display": "standalone",
+  "orientation": "portrait",
+  "categories": ["education", "developer-tools"]
+}

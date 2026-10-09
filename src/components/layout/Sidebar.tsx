@@ -14,8 +14,11 @@ import {
   Bookmark,
   BookOpen,
   Award,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { soundFx } from "@/lib/soundFx";
 import { modules, moduleProgress } from "@/data/mockData";
 import { CONCEPT_FLASHCARDS } from "@/data/flashcardsData";
 import { useAuthStore } from "@/store/useAuthStore";
@@ -28,6 +31,7 @@ export function Sidebar() {
   const { getStats } = useProgressStore();
   const { openSearch, openFlashcards, openNotes } = useStudyToolsStore();
   const stats = getStats();
+  const [soundEnabled, setSoundEnabled] = React.useState(soundFx.isEnabled());
   const masteredCardsCount = Object.values(stats.flashcardMastery || {}).filter(
     (v) => v === "mastered"
   ).length;
@@ -234,13 +238,25 @@ export function Sidebar() {
             </div>
           </Link>
 
-          <button
-            onClick={handleLogout}
-            title="Log Out"
-            className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-500/15 hover:text-rose-400 transition-colors cursor-pointer"
-          >
-            <LogOut size={15} />
-          </button>
+          <div className="flex items-center gap-0.5">
+            <button
+              onClick={() => {
+                const next = soundFx.toggle();
+                setSoundEnabled(next);
+              }}
+              title={soundEnabled ? "Mute Synthesized Audio FX" : "Enable Synthesized Audio FX"}
+              className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-amber-400 transition-colors cursor-pointer"
+            >
+              {soundEnabled ? <Volume2 size={15} /> : <VolumeX size={15} />}
+            </button>
+            <button
+              onClick={handleLogout}
+              title="Log Out"
+              className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-500/15 hover:text-rose-400 transition-colors cursor-pointer"
+            >
+              <LogOut size={15} />
+            </button>
+          </div>
         </div>
       </div>
     </aside>

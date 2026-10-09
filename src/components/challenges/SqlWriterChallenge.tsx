@@ -80,7 +80,7 @@ export function SqlWriterChallenge({
       const isMatch =
         userNorm === targetNorm ||
         acceptable.includes(userNorm) ||
-        (c.targetSqlPattern && new RegExp(c.targetSqlPattern, "i").test(query));
+        ((c as any).targetSqlPattern && new RegExp((c as any).targetSqlPattern, "i").test(query));
 
       if (isMatch) {
         setStatus("success");
